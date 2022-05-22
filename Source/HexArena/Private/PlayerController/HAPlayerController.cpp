@@ -7,6 +7,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Character/HABaseCharacter.h"
+#include "Components/Image.h"
 
 
 void AHAPlayerController::BeginPlay()
@@ -16,6 +17,82 @@ void AHAPlayerController::BeginPlay()
 	HAHUD = Cast<AHAHUD>(GetHUD());
 }
 
+void AHAPlayerController::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	CheckPing(DeltaTime);
+}
+
+void AHAPlayerController::CheckPing(float DeltaTime)
+{
+	HighPingRunningTime += DeltaTime;
+	if (HighPingRunningTime > CheckPingFrequency)
+	{
+		PlayerState = PlayerState == nullptr ? GetPlayerState<AHaPlayerState>() : PlayerState;
+		if (PlayerState)
+		{
+			if (PlayerState->GetPing() * 4 > HighPingThreshold) // Ping is compressed by 4 by default
+			{
+				HighPingWarning();
+				PlayAnimationRunningTime = 0.f;
+			}
+		}
+		HighPingRunningTime = 0.f;
+	}
+
+	bool bHighPingANimationPlaying =
+		HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->HighPingAnimation &&
+		HAHUD->CharacterOverlay->IsAnimationPlaying(HAHUD->CharacterOverlay->HighPingAnimation);
+
+	if (bHighPingANimationPlaying)
+	{
+		PlayAnimationRunningTime += DeltaTime;
+		if (PlayAnimationRunningTime > HighPingDuration)
+		{
+			StopHighPingWarning();
+		}
+	}
+}
+
+
+
+void AHAPlayerController::HighPingWarning()
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->HighPingImage &&
+		HAHUD->CharacterOverlay->HighPingAnimation;
+
+	if (bHUDValid)
+	{
+		HAHUD->CharacterOverlay->HighPingImage->SetOpacity(1.f);
+		HAHUD->CharacterOverlay->PlayAnimation(HAHUD->CharacterOverlay->HighPingAnimation, 0.f, 10);
+	}
+}
+
+void AHAPlayerController::StopHighPingWarning()
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->HighPingImage &&
+		HAHUD->CharacterOverlay->HighPingAnimation;
+
+	if (bHUDValid)
+	{
+		HAHUD->CharacterOverlay->HighPingImage->SetOpacity(0.f);
+		if(HAHUD->CharacterOverlay->IsAnimationPlaying(HAHUD->CharacterOverlay->HighPingAnimation))
+		{
+			HAHUD->CharacterOverlay->StopAnimation(HAHUD->CharacterOverlay->HighPingAnimation);
+		}
+	}
+}
 
 void AHAPlayerController::OnPossess(APawn* InPawn)
 {
@@ -27,6 +104,7 @@ void AHAPlayerController::OnPossess(APawn* InPawn)
 		SetHUDHealth(HACharacter->GetHealthComponent()->GetHealth(), HACharacter->GetHealthComponent()->GetMaxHealth());
 	}
 }
+
 
 void AHAPlayerController::SetHUDHealth(float Health, float MaxHealth)
 {

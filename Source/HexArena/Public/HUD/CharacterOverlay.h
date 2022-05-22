@@ -9,6 +9,7 @@
 
 class UProgressBar;
 class UTextBlock;
+class UImage;
 
 UCLASS()
 class HEXARENA_API UCharacterOverlay : public UUserWidget
@@ -32,6 +33,15 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* AmmoOfType;
+
+	UPROPERTY(meta = (BindWidget))
+	UImage* HighPingImage;
+
+	UPROPERTY(meta = (BindWidget))
+	UImage* WeaponImage;
+
+	UPROPERTY(meta = (BindWidgetAnim), Transient)
+	UWidgetAnimation* HighPingAnimation;
 
 
 };

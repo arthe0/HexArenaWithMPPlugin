@@ -214,7 +214,10 @@ void ABaseWeapon::Fire(const FVector& HitTarget)
 			}
 		}
 	}
-	SpendRound();
+	if(HasAuthority())
+	{
+		SpendRound();
+	}
 }
 
 void ABaseWeapon::Dropped()

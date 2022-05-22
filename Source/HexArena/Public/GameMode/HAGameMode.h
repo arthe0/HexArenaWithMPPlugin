@@ -14,7 +14,7 @@ UCLASS()
 class HEXARENA_API AHAGameMode : public AGameMode
 {
 	GENERATED_BODY()
-	
+
 public:
 	virtual void PlayerEliminated(class AHABaseCharacter* Eliminated, AHAPlayerController* EliminatedPC, AHAPlayerController* AttackerPC);
 	virtual void RequestRespawn(class AHABaseCharacter* Eliminated, AController* EliminatedPC);

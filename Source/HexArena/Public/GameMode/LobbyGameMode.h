@@ -16,5 +16,18 @@ class HEXARENA_API ALobbyGameMode : public AGameMode
 
 public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+private:
+	UPROPERTY(EditDefaultsOnly)
+	int32 NumPlayersToStart = 10;
+
+	UPROPERTY(EditDefaultsOnly)
+	FString LevelToTravelPath = FString("/Game/Levels/HALevel?listen");
+
+	UFUNCTION(BlueprintCallable)
+	void TravelToLevel(FString Path);
+
+	UFUNCTION(BlueprintCallable)
+	void StartTravel();
 	
 };

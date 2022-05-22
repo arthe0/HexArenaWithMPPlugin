@@ -9,13 +9,23 @@ void ALobbyGameMode::PostLogin(APlayerController* NewPlayer)
 	Super::PostLogin(NewPlayer);
 
 	int32 NUmberOfPlayers = GameState.Get()->PlayerArray.Num();
-	if(NUmberOfPlayers == 2)
+	if(NUmberOfPlayers == NumPlayersToStart)
 	{
-		UWorld* World = GetWorld();
-		if(World)
-		{
-			bUseSeamlessTravel = true;
-			World->ServerTravel(FString("/Game/Levels/HALevel?listen"));
-		}
+		TravelToLevel(LevelToTravelPath);
 	}
+}
+
+void ALobbyGameMode::TravelToLevel(FString Path)
+{
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		bUseSeamlessTravel = true;
+		World->ServerTravel(Path);
+	}
+}
+
+void ALobbyGameMode::StartTravel()
+{
+	TravelToLevel(LevelToTravelPath);
 }

@@ -16,6 +16,8 @@ class HEXARENA_API AHAPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	virtual void Tick(float DeltaTime) override;
+
 	void SetHUDHealth (float Health, float MaxHealth);
 	void SetHUDKills (float Kills);
 	void SetHUDDeaths (int32 Deaths);
@@ -26,8 +28,28 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+
+	void HighPingWarning();
+	void StopHighPingWarning();
+
+	void CheckPing(float DeltaTime);
+
 private:
 	AHAHUD* HAHUD;
 
 	void SetNumericValueInTextBlock(float Value, UTextBlock* TextBlock);
+
+
+	float HighPingRunningTime = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	float HighPingDuration = 10.f;
+
+	float PlayAnimationRunningTime = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	float CheckPingFrequency = 15.f;
+
+	UPROPERTY(EditAnywhere)
+	float HighPingThreshold = 100.f;
 };
