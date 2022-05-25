@@ -32,6 +32,8 @@ public:
 
 	FTimeline AimingTimeline;
 
+	bool bLocalyReloading = false;
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void EquipWeapon(ABaseWeapon* WeaponToEquip);
@@ -85,8 +87,13 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeapon)
 	ABaseWeapon* EquippedWeapon;
 
-	UPROPERTY(Replicated)
-	bool bAiming;
+	UPROPERTY(ReplicatedUsing = OnRep_Aiming)
+	bool bAiming = false;
+
+	bool bLocalAiming = false;
+
+	UFUNCTION()
+	void OnRep_Aiming();
 
 	UPROPERTY(EditAnywhere)
 	float BaseWalkSpeed;
@@ -129,7 +136,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = Combat)
 	float ZoomInterpSpeed = 20.f;
 
-	UPROPERTY(EditAnywhere, Replicated, Category = Anim)
+	UPROPERTY(EditAnywhere, /*Replicated,*/ Category = Anim)
 	float ADSWeight = 0.f;
 
 	/*

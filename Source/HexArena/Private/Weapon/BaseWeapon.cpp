@@ -38,13 +38,10 @@ void ABaseWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if(HasAuthority())
-	{
-		AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
-		AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &ABaseWeapon::OnSphereOverlap);
-		AreaSphere->OnComponentEndOverlap.AddDynamic(this, &ABaseWeapon::OnSphereEndOverlap);
-	}
+	AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &ABaseWeapon::OnSphereOverlap);
+	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &ABaseWeapon::OnSphereEndOverlap);
 
 	if (PickupWidget)
 	{
@@ -63,7 +60,6 @@ void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ABaseWeapon, WeaponState);
-	DOREPLIFETIME(ABaseWeapon, Ammo);
 }
 
 void ABaseWeapon::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -156,14 +152,38 @@ void ABaseWeapon::SetHUDAmmo()
 
 void ABaseWeapon::SpendRound()
 {
-	Ammo = FMath::Clamp(Ammo -1, 0, MagCapacity);
+	Ammo = FMath::Clamp(Ammo - 1, 0, MagCapacity);
+	SetHUDAmmo();
+	if(HasAuthority())
+	{
+		ClientUpdateAmmo(Ammo);
+	}
+	else
+	{
+		++UnprocessedSequence;
+	}
+}
+
+void ABaseWeapon::ClientUpdateAmmo_Implementation(int32 ServerAmmo)
+{
+	if(HasAuthority()) return;
+	Ammo = ServerAmmo;
+	--UnprocessedSequence;
+	Ammo -=UnprocessedSequence;
 	SetHUDAmmo();
 }
 
-
-
-void ABaseWeapon::OnRep_Ammo()
+void ABaseWeapon::AddAmmo(int32 AmmoToAdd)
 {
+	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, MagCapacity);
+	SetHUDAmmo();
+	ClientAddAmmo(AmmoToAdd);
+}
+
+void ABaseWeapon::ClientAddAmmo_Implementation(int32 AmmoToAdd)
+{
+	if (HasAuthority()) return;
+	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, MagCapacity);
 	SetHUDAmmo();
 }
 
@@ -214,10 +234,7 @@ void ABaseWeapon::Fire(const FVector& HitTarget)
 			}
 		}
 	}
-	if(HasAuthority())
-	{
-		SpendRound();
-	}
+	SpendRound();
 }
 
 void ABaseWeapon::Dropped()
@@ -228,12 +245,6 @@ void ABaseWeapon::Dropped()
 	SetOwner(nullptr);
 	HAOwnerController = nullptr;
 	HAOwnerCharacter = nullptr;
-}
-
-void ABaseWeapon::AddAmmo(int32 AmmoToAdd)
-{
-	Ammo = FMath::Clamp(Ammo - AmmoToAdd, 0, MagCapacity);
-	SetHUDAmmo();
 }
 
 bool ABaseWeapon::IsEmpty()

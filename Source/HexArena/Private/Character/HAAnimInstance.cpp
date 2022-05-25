@@ -73,6 +73,10 @@ void UHAAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	}
 
 	bReloading = HACharacter->GetCombatState() == ECombatState::ECS_Reloading;
+	if(HACharacter->IsLocallyControlled())
+	{
+		bReloading = HACharacter->IsLocallyReloading();
+	}
 
 	//FPS Properties START
 	//TODO: Promote this functional to delegate in future

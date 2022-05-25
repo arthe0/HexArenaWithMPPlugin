@@ -280,16 +280,23 @@ private:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class ABulletShell> BulletShellClass;
 
-	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Ammo)
+	UPROPERTY(EditAnywhere/*, ReplicatedUsing = OnRep_Ammo*/)
 	int32 Ammo;
 
-	UFUNCTION()
-	void OnRep_Ammo();
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAmmo(int32 ServerAmmo);
+
+	UFUNCTION(Client, Reliable)
+	void ClientAddAmmo(int32 AmmoToAdd);
 
 	void SpendRound();
 
 	UPROPERTY(EditAnywhere)
 	int32 MagCapacity;
+
+	//	The number of unprocessed server requses for ammo.
+	//	Incremented in SpendRound, Decremented in FireUpdateAmmo
+	int32 UnprocessedSequence = 0;
 
 	UPROPERTY()
 	AHABaseCharacter* HAOwnerCharacter;

@@ -32,7 +32,7 @@ void AHAPlayerController::CheckPing(float DeltaTime)
 		PlayerState = PlayerState == nullptr ? GetPlayerState<AHaPlayerState>() : PlayerState;
 		if (PlayerState)
 		{
-			if (PlayerState->GetPing() * 4 > HighPingThreshold) // Ping is compressed by 4 by default
+			if (PlayerState->GetCompressedPing() * 4 > HighPingThreshold) // Ping is compressed by 4 by default
 			{
 				HighPingWarning();
 				PlayAnimationRunningTime = 0.f;

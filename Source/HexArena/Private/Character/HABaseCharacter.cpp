@@ -20,6 +20,8 @@
 #include "PlayerStates/HaPlayerState.h"
 #include "Weapon/AmmoTypes.h"
 #include "Weapon//WeaponTypes.h"
+#include "Components/BoxComponent.h"
+#include "HAComponents/LagCompensationComponent.h"
 
 AHABaseCharacter::AHABaseCharacter()
 {
@@ -50,11 +52,102 @@ AHABaseCharacter::AHABaseCharacter()
 	Health = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	Health->SetIsReplicated(true);
 
+	LagCompensation = CreateDefaultSubobject<ULagCompensationComponent>(TEXT("LagCompensationComponent"));
+
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
 	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 
 	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
+
+	/*
+	 *	Server HitBoxes 
+	 */
+
+	 HeadBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HeadBox"));
+	 HeadBox->SetupAttachment(GetMesh(), FName("head"));
+	 HeadBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("HeadBox"), HeadBox);
+
+	 NeckBox = CreateDefaultSubobject<UBoxComponent>(TEXT("NeckBox"));
+	 NeckBox->SetupAttachment(GetMesh(), FName("neck_01"));
+	 NeckBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("NeckBox"), NeckBox);
+
+	 ChestBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ChestBox"));
+	 ChestBox->SetupAttachment(GetMesh(), FName("spine_03"));
+	 ChestBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("ChestBox"), ChestBox);
+
+	 StomachBox = CreateDefaultSubobject<UBoxComponent>(TEXT("StomachBox"));
+	 StomachBox->SetupAttachment(GetMesh(), FName("spine_02"));
+	 StomachBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("StomachBox"), StomachBox);
+
+	 PelvisBox = CreateDefaultSubobject<UBoxComponent>(TEXT("PelvisBox"));
+	 PelvisBox->SetupAttachment(GetMesh(), FName("pelvis"));
+	 PelvisBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("PelvisBox"), PelvisBox);
+
+	 UpperArmLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("UpperArmLBox"));
+	 UpperArmLBox->SetupAttachment(GetMesh(), FName("upperarm_l"));
+	 UpperArmLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("UpperArmLBox"), UpperArmLBox);
+
+	 UpperArmRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("UpperArmRBox"));
+	 UpperArmRBox->SetupAttachment(GetMesh(), FName("upperarm_r"));
+	 UpperArmRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("UpperArmRBox"), UpperArmRBox);
+
+	 LowerArmLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LowerArmLBox"));
+	 LowerArmLBox->SetupAttachment(GetMesh(), FName("lowerarm_l"));
+	 LowerArmLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("LowerArmLBox"), LowerArmLBox);
+
+	 LowerArmRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LowerArmRBox"));
+	 LowerArmRBox->SetupAttachment(GetMesh(), FName("lowerarm_r"));
+	 LowerArmRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("LowerArmRBox"), LowerArmRBox);
+
+	 HandLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HandLBox"));
+	 HandLBox->SetupAttachment(GetMesh(), FName("hand_l"));
+	 HandLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("HandLBox"), HandLBox);
+
+	 HandRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HandRBox"));
+	 HandRBox->SetupAttachment(GetMesh(), FName("hand_r"));
+	 HandRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("HandRBox"), HandRBox);
+
+	 ThighLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ThighLBox"));
+	 ThighLBox->SetupAttachment(GetMesh(), FName("thigh_l"));
+	 ThighLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("ThighLBox"), ThighLBox);
+
+	 ThighRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ThighRBox"));
+	 ThighRBox->SetupAttachment(GetMesh(), FName("thigh_r"));
+	 ThighRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("ThighRBox"), ThighRBox);
+
+	 CalfLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CalfLBox"));
+	 CalfLBox->SetupAttachment(GetMesh(), FName("calf_l"));
+	 CalfLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("CalfLBox"), CalfLBox);
+
+	 CalfRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CalfRBox"));
+	 CalfRBox->SetupAttachment(GetMesh(), FName("calf_r"));
+	 CalfRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("CalfRBox"), CalfRBox);
+
+	 FootLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("FootLBox"));
+	 FootLBox->SetupAttachment(GetMesh(), FName("foot_l"));
+	 FootLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("FootLBox"), FootLBox);
+
+	 FootRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("FootRBox"));
+	 FootRBox->SetupAttachment(GetMesh(), FName("foot_r"));
+	 FootRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	 HitBoxes.Add(FName("FootRBox"), FootRBox);
 }
 
 void AHABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -124,6 +217,15 @@ void AHABaseCharacter::PostInitializeComponents()
 	if (Health)
 	{
 		Health->Character = this;
+	}
+
+	if(LagCompensation)
+	{
+		LagCompensation->Character = this;
+		if(Controller)
+		{
+			LagCompensation->Controller = Cast<AHAPlayerController>(Controller);
+		}
 	}
 }
 
@@ -226,6 +328,14 @@ void AHABaseCharacter::EquipButtonPressed()
 		{
 			ServerEquipButtonPressed();
 		}
+	}
+}
+
+void AHABaseCharacter::ServerEquipButtonPressed_Implementation()
+{
+	if (Combat)
+	{
+		Combat->EquipWeapon(OverlappingWeapon);
 	}
 }
 
@@ -341,13 +451,6 @@ void AHABaseCharacter::TurnInPlace(float DeltaTime)
 /*
  * Death handle functions
  */
-void AHABaseCharacter::ServerEquipButtonPressed_Implementation()
-{
-	if (Combat)
-	{
-		Combat->EquipWeapon(OverlappingWeapon);
-	}
-}
 
 void AHABaseCharacter::Death()
 {
@@ -521,5 +624,11 @@ ECombatState AHABaseCharacter::GetCombatState() const
 {
 	if(Combat == nullptr) return ECombatState::ECS_MAX;
 	return Combat->CombatState;
+}
+
+bool AHABaseCharacter::IsLocallyReloading()
+{
+	if (Combat == nullptr) return false;
+	return Combat->bLocalyReloading;
 }
 

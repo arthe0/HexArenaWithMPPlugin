@@ -24,7 +24,9 @@ class UAnimMontage;
 class AHAPlayerController;
 class UTimelineComponent;
 class AHaPlayerState;
-
+class UBoxComponent;
+class ULagCompensationComponent;
+class UBoxComponent;
 
 UCLASS()
 class HEXARENA_API AHABaseCharacter : public ACharacter, public IInteractWithCrosshairsInterface
@@ -55,6 +57,9 @@ public:
 
 	AHAPlayerController* HAPlayerController;
 
+	UPROPERTY()
+	TMap<FName, UBoxComponent*> HitBoxes;
+
 protected:
 
 	bool bIsMovingForward = false;
@@ -78,6 +83,61 @@ protected:
 	//	Poll for any relevant class and init HUD
 	void PollInit();
 
+	/*
+	 * Hit Boxes for server side rewind
+	 */
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* HeadBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* NeckBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* ChestBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* StomachBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* PelvisBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* UpperArmLBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* UpperArmRBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* LowerArmLBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* LowerArmRBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* HandLBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* HandRBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* ThighLBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* ThighRBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* CalfLBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* CalfRBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* FootLBox;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* FootRBox;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	UCameraComponent* CameraComponent;
@@ -91,11 +151,18 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_OverlappingWeapon)
 	ABaseWeapon* OverlappingWeapon;
 
+	/*
+	 *	HA Components 
+	 */
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCombatComponent* Combat;
 
 	UPROPERTY(VisibleAnywhere)
 	UHealthComponent* Health;
+
+	UPROPERTY(VisibleAnywhere)
+	ULagCompensationComponent* LagCompensation;
 
 	/*
 	* Montages
@@ -198,4 +265,6 @@ public:
 	AHAPlayerController* GetPlayerController();
 	
 	ECombatState GetCombatState() const;
+
+	bool IsLocallyReloading();
 };
