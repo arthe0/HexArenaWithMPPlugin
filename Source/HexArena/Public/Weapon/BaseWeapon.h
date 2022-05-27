@@ -29,7 +29,7 @@ struct FWeaponData
 	* Weapon Mesh
 	*/
 
-	UPROPERTY(VisibleAnywhere, Category = "Weapon Mesh")
+	UPROPERTY(EditAnywhere, Category = "Weapon Mesh")
 	USkeletalMeshComponent* WeaponMesh;
 
 	/*
@@ -47,7 +47,7 @@ struct FWeaponData
 	TSubclassOf<AProjectile> ProjectileClass;
 
 	UPROPERTY(EditAnywhere, Category = "Ammo")
-	int32 MagCapacity;
+	int32 MagCapacity = 30;
 
 	UPROPERTY(EditAnywhere, Category = "Ammo")
 	TSubclassOf<class ABulletShell> BulletShellClass;
@@ -62,10 +62,13 @@ struct FWeaponData
 	float HeadMultiplyer = 2.f;
 
 	UPROPERTY(EditAnywhere, Category = "AmmoDamage")
-	float TorsoMultiplyer = 1.2f;
+	float NeckMultiplyer = 1.8f;
 
 	UPROPERTY(EditAnywhere, Category = "AmmoDamage")
-	float StomachMultiplyer = 1.f;
+	float ChestMultiplyer = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = "AmmoDamage")
+	float StomachMultiplyer = 0.9f;
 
 	UPROPERTY(EditAnywhere, Category = "AmmoDamage")
 	float LimbsMultiplyer = .8f;
@@ -182,10 +185,19 @@ public:
 	virtual void Fire(const FVector& HitTarget);
 	void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
+
 	/*
-	 * FPP anims prorperties and functions 
-	 * This should have proper access modifiers after this going to work
-	 */
+	* WeaponData
+	*/
+
+	UPROPERTY(EditAnywhere, Category = "WeaponData")
+	FWeaponData WeaponData;
+
+	/*
+	* FPP anims prorperties and functions 
+	* This should have proper access modifiers after this going to work
+	*/
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FIKProperties IKProperties;
 
@@ -229,16 +241,17 @@ public:
 	 * Automatic
 	 */
 
-	 UPROPERTY(EditAnywhere, Category = "Automatic")
-	 float FireDelay = .15f;
+	 float FireDelay;
 
 	 UPROPERTY(EditAnywhere, Category = "Automatic")
 	 bool bAutomatic = true;
 
-	
-
 protected:
 	virtual void BeginPlay() override;
+
+	virtual void OnWeaponStateSet();
+	virtual void OnEquipped();
+	virtual void OnDropped();
 
 	UFUNCTION()
 	virtual void OnSphereOverlap(
@@ -257,6 +270,15 @@ protected:
 		UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex
 	);
+
+	UFUNCTION()
+	void OnPingToHigh(bool bPingTooHigh);
+
+	/**
+	* SSR
+	*/
+	UPROPERTY(Replicated, EditAnywhere)
+	bool bUseSSR = true;
 
 private:	
 	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")

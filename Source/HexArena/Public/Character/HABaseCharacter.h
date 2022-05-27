@@ -11,6 +11,7 @@
 #include "Components/TimelineComponent.h"
 #include "PlayerStates/HaPlayerState.h"
 #include "HATypes/CombatState.h"
+#include "HAComponents/HitBoxComponent.h"
 #include "HABaseCharacter.generated.h"
 
 
@@ -26,7 +27,7 @@ class UTimelineComponent;
 class AHaPlayerState;
 class UBoxComponent;
 class ULagCompensationComponent;
-class UBoxComponent;
+class UHitBoxComponent;
 
 UCLASS()
 class HEXARENA_API AHABaseCharacter : public ACharacter, public IInteractWithCrosshairsInterface
@@ -58,7 +59,7 @@ public:
 	AHAPlayerController* HAPlayerController;
 
 	UPROPERTY()
-	TMap<FName, UBoxComponent*> HitBoxes;
+	TMap<FName, UHitBoxComponent*> HitBoxes;
 
 protected:
 
@@ -88,55 +89,55 @@ protected:
 	 */
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* HeadBox;
+	UHitBoxComponent* HeadBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* NeckBox;
+	UHitBoxComponent* NeckBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* ChestBox;
+	UHitBoxComponent* ChestBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* StomachBox;
+	UHitBoxComponent* StomachBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* PelvisBox;
+	UHitBoxComponent* PelvisBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* UpperArmLBox;
+	UHitBoxComponent* UpperArmLBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* UpperArmRBox;
+	UHitBoxComponent* UpperArmRBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* LowerArmLBox;
+	UHitBoxComponent* LowerArmLBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* LowerArmRBox;
+	UHitBoxComponent* LowerArmRBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* HandLBox;
+	UHitBoxComponent* HandLBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* HandRBox;
+	UHitBoxComponent* HandRBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* ThighLBox;
+	UHitBoxComponent* ThighLBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* ThighRBox;
+	UHitBoxComponent* ThighRBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* CalfLBox;
+	UHitBoxComponent* CalfLBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* CalfRBox;
+	UHitBoxComponent* CalfRBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* FootLBox;
+	UHitBoxComponent* FootLBox;
 
 	UPROPERTY(EditAnywhere)
-	UBoxComponent* FootRBox;
+	UHitBoxComponent* FootRBox;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
@@ -252,19 +253,15 @@ public:
 
 	//MB not a good idea???
 	FORCEINLINE float GetADSWeight() { return Combat->ADSWeight; }
-
 	ABaseWeapon* GetEquippedWeapon();
-
 	FORCEINLINE ETurningInPlace GetTurningInPlace() const { return TurningInPlace; }
 
 	//Is it a good idea?
 	FORCEINLINE bool bIsDeath() { return bDeath; }
-
 	FVector GetHitTarget() const;
-
 	AHAPlayerController* GetPlayerController();
-	
 	ECombatState GetCombatState() const;
-
 	bool IsLocallyReloading();
+
+	FORCEINLINE ULagCompensationComponent* GetLagCompensation () const { return LagCompensation; }
 };

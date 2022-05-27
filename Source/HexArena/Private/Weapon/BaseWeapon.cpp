@@ -29,7 +29,6 @@ ABaseWeapon::ABaseWeapon()
 	AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-
 	PickupWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("PickupWidget"));
 	PickupWidget->SetupAttachment(RootComponent);
 }
@@ -42,6 +41,8 @@ void ABaseWeapon::BeginPlay()
 	AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &ABaseWeapon::OnSphereOverlap);
 	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &ABaseWeapon::OnSphereEndOverlap);
+
+	FireDelay = WeaponData.FireRate / 6000.f;
 
 	if (PickupWidget)
 	{
@@ -60,6 +61,7 @@ void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ABaseWeapon, WeaponState);
+	DOREPLIFETIME_CONDITION(ABaseWeapon, bUseSSR, COND_OwnerOnly);
 }
 
 void ABaseWeapon::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -81,28 +83,73 @@ void ABaseWeapon::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, A
 	}
 }
 
-void ABaseWeapon::OnRep_WeaponState()
+void ABaseWeapon::OnPingToHigh(bool bPingTooHigh)
+{
+	bUseSSR = !bPingTooHigh;
+}
+
+void ABaseWeapon::OnWeaponStateSet()
 {
 	switch (WeaponState)
 	{
 	case EWeaponState::EWS_Initial:
 		break;
 	case EWeaponState::EWS_Equipped:
-		ShowPickupWidget(false);
-		WeaponMesh->SetSimulatePhysics(false);
-		WeaponMesh->SetEnableGravity(false);
-		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		OnEquipped();
 		break;
 	case EWeaponState::EWS_Dropped:
-		WeaponMesh->SetSimulatePhysics(true);
-		WeaponMesh->SetEnableGravity(true);
-		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		OnDropped();
 		break;
 	case EWeaponState::EWS_MAX:
 		break;
 	default:
 		break;
 	}
+}
+
+void ABaseWeapon::OnEquipped()
+{
+	ShowPickupWidget(false);
+	WeaponMesh->SetSimulatePhysics(false);
+	WeaponMesh->SetEnableGravity(false);
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
+	if(HAOwnerCharacter && bUseSSR)
+	{
+		HAOwnerController = HAOwnerController == nullptr ? Cast<AHAPlayerController>(HAOwnerCharacter->Controller) : HAOwnerController;
+		if(HAOwnerController && HasAuthority() && !HAOwnerController->HighPingDelegate.IsBound())
+		{
+			HAOwnerController->HighPingDelegate.AddDynamic(this, &ABaseWeapon::OnPingToHigh);
+		}
+	}
+}
+
+void ABaseWeapon::OnDropped()
+{
+	if(HasAuthority())
+	{
+		AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+	WeaponMesh->SetSimulatePhysics(true);
+	WeaponMesh->SetEnableGravity(true);
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+
+	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
+	if (HAOwnerCharacter && bUseSSR)
+	{
+		HAOwnerController = HAOwnerController == nullptr ? Cast<AHAPlayerController>(HAOwnerCharacter->Controller) : HAOwnerController;
+		if (HAOwnerController && HasAuthority() && HAOwnerController->HighPingDelegate.IsBound())
+		{
+			HAOwnerController->HighPingDelegate.RemoveDynamic(this, &ABaseWeapon::OnPingToHigh);
+		}
+	}
+}
+
+void ABaseWeapon::OnRep_WeaponState()
+{
+	OnWeaponStateSet();
 }
 
 

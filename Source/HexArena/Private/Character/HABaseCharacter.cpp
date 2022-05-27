@@ -61,93 +61,105 @@ AHABaseCharacter::AHABaseCharacter()
 	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
 
 	/*
-	 *	Server HitBoxes 
-	 */
+	*	Server HitBoxes 
+	*/
 
-	 HeadBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HeadBox"));
-	 HeadBox->SetupAttachment(GetMesh(), FName("head"));
-	 HeadBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("HeadBox"), HeadBox);
+	HeadBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("HeadBox"));
+	HeadBox->SetupAttachment(GetMesh(), FName("head"));
+	HeadBox->HitBoxType = EHitBoxType::EHBT_Head;
+	HitBoxes.Add(FName("HeadBox"), HeadBox);
 
-	 NeckBox = CreateDefaultSubobject<UBoxComponent>(TEXT("NeckBox"));
-	 NeckBox->SetupAttachment(GetMesh(), FName("neck_01"));
-	 NeckBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("NeckBox"), NeckBox);
+	NeckBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("NeckBox"));
+	NeckBox->SetupAttachment(GetMesh(), FName("neck_01"));
+	NeckBox->HitBoxType = EHitBoxType::EHBT_Neck;
+	HitBoxes.Add(FName("NeckBox"), NeckBox);
 
-	 ChestBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ChestBox"));
-	 ChestBox->SetupAttachment(GetMesh(), FName("spine_03"));
-	 ChestBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("ChestBox"), ChestBox);
+	ChestBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("ChestBox"));
+	ChestBox->SetupAttachment(GetMesh(), FName("spine_03"));
+	ChestBox->HitBoxType = EHitBoxType::EHBT_Chest;
+	HitBoxes.Add(FName("ChestBox"), ChestBox);
 
-	 StomachBox = CreateDefaultSubobject<UBoxComponent>(TEXT("StomachBox"));
-	 StomachBox->SetupAttachment(GetMesh(), FName("spine_02"));
-	 StomachBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("StomachBox"), StomachBox);
+	StomachBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("StomachBox"));
+	StomachBox->SetupAttachment(GetMesh(), FName("spine_02"));
+	StomachBox->HitBoxType = EHitBoxType::EHBT_Stomach;
+	HitBoxes.Add(FName("StomachBox"), StomachBox);
 
-	 PelvisBox = CreateDefaultSubobject<UBoxComponent>(TEXT("PelvisBox"));
-	 PelvisBox->SetupAttachment(GetMesh(), FName("pelvis"));
-	 PelvisBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("PelvisBox"), PelvisBox);
+	PelvisBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("PelvisBox"));
+	PelvisBox->SetupAttachment(GetMesh(), FName("pelvis"));
+	PelvisBox->HitBoxType = EHitBoxType::EHBT_Stomach;
+	HitBoxes.Add(FName("PelvisBox"), PelvisBox);
 
-	 UpperArmLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("UpperArmLBox"));
-	 UpperArmLBox->SetupAttachment(GetMesh(), FName("upperarm_l"));
-	 UpperArmLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("UpperArmLBox"), UpperArmLBox);
+	UpperArmLBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("UpperArmLBox"));
+	UpperArmLBox->SetupAttachment(GetMesh(), FName("upperarm_l"));
+	UpperArmLBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("UpperArmLBox"), UpperArmLBox);
 
-	 UpperArmRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("UpperArmRBox"));
-	 UpperArmRBox->SetupAttachment(GetMesh(), FName("upperarm_r"));
-	 UpperArmRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("UpperArmRBox"), UpperArmRBox);
+	UpperArmRBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("UpperArmRBox"));
+	UpperArmRBox->SetupAttachment(GetMesh(), FName("upperarm_r"));
+	UpperArmRBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("UpperArmRBox"), UpperArmRBox);
 
-	 LowerArmLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LowerArmLBox"));
-	 LowerArmLBox->SetupAttachment(GetMesh(), FName("lowerarm_l"));
-	 LowerArmLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("LowerArmLBox"), LowerArmLBox);
+	LowerArmLBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("LowerArmLBox"));
+	LowerArmLBox->SetupAttachment(GetMesh(), FName("lowerarm_l"));
+	LowerArmLBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("LowerArmLBox"), LowerArmLBox);
 
-	 LowerArmRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LowerArmRBox"));
-	 LowerArmRBox->SetupAttachment(GetMesh(), FName("lowerarm_r"));
-	 LowerArmRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("LowerArmRBox"), LowerArmRBox);
+	LowerArmRBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("LowerArmRBox"));
+	LowerArmRBox->SetupAttachment(GetMesh(), FName("lowerarm_r"));
+	LowerArmRBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("LowerArmRBox"), LowerArmRBox);
 
-	 HandLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HandLBox"));
-	 HandLBox->SetupAttachment(GetMesh(), FName("hand_l"));
-	 HandLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("HandLBox"), HandLBox);
+	HandLBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("HandLBox"));
+	HandLBox->SetupAttachment(GetMesh(), FName("hand_l"));
+	HandLBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("HandLBox"), HandLBox);
 
-	 HandRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HandRBox"));
-	 HandRBox->SetupAttachment(GetMesh(), FName("hand_r"));
-	 HandRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("HandRBox"), HandRBox);
+	HandRBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("HandRBox"));
+	HandRBox->SetupAttachment(GetMesh(), FName("hand_r"));
+	HandRBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("HandRBox"), HandRBox);
 
-	 ThighLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ThighLBox"));
-	 ThighLBox->SetupAttachment(GetMesh(), FName("thigh_l"));
-	 ThighLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("ThighLBox"), ThighLBox);
+	ThighLBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("ThighLBox"));
+	ThighLBox->SetupAttachment(GetMesh(), FName("thigh_l"));
+	ThighLBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("ThighLBox"), ThighLBox);
 
-	 ThighRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ThighRBox"));
-	 ThighRBox->SetupAttachment(GetMesh(), FName("thigh_r"));
-	 ThighRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("ThighRBox"), ThighRBox);
+	ThighRBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("ThighRBox"));
+	ThighRBox->SetupAttachment(GetMesh(), FName("thigh_r"));
+	ThighRBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("ThighRBox"), ThighRBox);
 
-	 CalfLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CalfLBox"));
-	 CalfLBox->SetupAttachment(GetMesh(), FName("calf_l"));
-	 CalfLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("CalfLBox"), CalfLBox);
+	CalfLBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("CalfLBox"));
+	CalfLBox->SetupAttachment(GetMesh(), FName("calf_l"));
+	CalfLBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("CalfLBox"), CalfLBox);
 
-	 CalfRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CalfRBox"));
-	 CalfRBox->SetupAttachment(GetMesh(), FName("calf_r"));
-	 CalfRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("CalfRBox"), CalfRBox);
+	CalfRBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("CalfRBox"));
+	CalfRBox->SetupAttachment(GetMesh(), FName("calf_r"));
+	CalfRBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("CalfRBox"), CalfRBox);
 
-	 FootLBox = CreateDefaultSubobject<UBoxComponent>(TEXT("FootLBox"));
-	 FootLBox->SetupAttachment(GetMesh(), FName("foot_l"));
-	 FootLBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("FootLBox"), FootLBox);
+	FootLBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("FootLBox"));
+	FootLBox->SetupAttachment(GetMesh(), FName("foot_l"));
+	FootLBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("FootLBox"), FootLBox);
 
-	 FootRBox = CreateDefaultSubobject<UBoxComponent>(TEXT("FootRBox"));
-	 FootRBox->SetupAttachment(GetMesh(), FName("foot_r"));
-	 FootRBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	 HitBoxes.Add(FName("FootRBox"), FootRBox);
+	FootRBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("FootRBox"));
+	FootRBox->SetupAttachment(GetMesh(), FName("foot_r"));
+	FootRBox->HitBoxType = EHitBoxType::EHBT_Limbs;
+	HitBoxes.Add(FName("FootRBox"), FootRBox);
+
+	for (auto Box : HitBoxes)
+	{
+		if (Box.Value)
+		{
+			Box.Value->SetCollisionObjectType(ECC_HitBox);
+			Box.Value->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			Box.Value->SetCollisionResponseToChannel(ECC_HitBox, ECollisionResponse::ECR_Block);
+			Box.Value->SetCollisionResponseToChannel(ECC_WorldDynamic, ECollisionResponse::ECR_Block);
+			Box.Value->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
 }
 
 void AHABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -503,6 +515,12 @@ void AHABaseCharacter::MulticastDeath_Implementation()
 	//Disable Collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+
+	for (auto& Box : HitBoxes)
+	{
+		Box.Value->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Box.Value->SetCollisionResponseToAllChannels(ECR_Ignore);
+	}
 
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 

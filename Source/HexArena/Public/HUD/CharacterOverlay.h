@@ -23,6 +23,9 @@ public:
 	UTextBlock* HealthText;
 
 	UPROPERTY(meta = (BindWidget))
+	UTextBlock* TimerText;
+
+	UPROPERTY(meta = (BindWidget))
 	UTextBlock* StatsKills;
 
 	UPROPERTY(meta = (BindWidget))

@@ -20,6 +20,9 @@ void AHAPlayerController::BeginPlay()
 void AHAPlayerController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	SetHUDTime();
+	
+	CheckTimeSync(DeltaTime);
 
 	CheckPing(DeltaTime);
 }
@@ -32,10 +35,16 @@ void AHAPlayerController::CheckPing(float DeltaTime)
 		PlayerState = PlayerState == nullptr ? GetPlayerState<AHaPlayerState>() : PlayerState;
 		if (PlayerState)
 		{
+			//UE_LOG(LogTemp, Warning, TEXT("PlayerState->GetCompressedPing() * 4 = %d"), PlayerState->GetCompressedPing() * 4);
 			if (PlayerState->GetCompressedPing() * 4 > HighPingThreshold) // Ping is compressed by 4 by default
 			{
 				HighPingWarning();
 				PlayAnimationRunningTime = 0.f;
+				ServerReportPingStatus(true);
+			}
+			else
+			{
+				ServerReportPingStatus(false);
 			}
 		}
 		HighPingRunningTime = 0.f;
@@ -58,6 +67,10 @@ void AHAPlayerController::CheckPing(float DeltaTime)
 }
 
 
+void AHAPlayerController::ServerReportPingStatus_Implementation(bool bHighPing)
+{
+	HighPingDelegate.Broadcast(bHighPing);
+}
 
 void AHAPlayerController::HighPingWarning()
 {
@@ -186,6 +199,65 @@ void AHAPlayerController::SetHUDAmmoOfType(int32 Ammo)
 	}
 }
 
+void AHAPlayerController::SetHUDTimer(float Time)
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->TimerText;
+
+	if (bHUDValid)
+	{
+		int32 Minuts = FMath::FloorToInt(Time / 60.0f);
+		int32 Seconds = Time - Minuts * 60;
+
+		FString TimerText = FString::Printf(TEXT("%02d : %02d"), Minuts, Seconds);
+		HAHUD->CharacterOverlay->TimerText->SetText(FText::FromString(TimerText));
+	}
+}
+
+void AHAPlayerController::SetHUDTime()
+{
+	uint32 SecondsLeft = FMath::CeilToInt(RoundTime - GetServerTime());
+	if(TimerInt != SecondsLeft)
+	{
+		SetHUDTimer(RoundTime - GetServerTime());
+	}
+
+	TimerInt = SecondsLeft;
+}
+
+float AHAPlayerController::GetServerTime()
+{
+	if (HasAuthority()) return GetWorld()->GetTimeSeconds();
+	return GetWorld()->GetTimeSeconds() + ClientServerDeltaTime;
+}
+
+void AHAPlayerController::CheckTimeSync(float DeltaTime)
+{
+	TimeSyncRunningTime += DeltaTime;
+	if (IsLocalController() && TimeSyncRunningTime > TimeSyncFrequency)
+	{
+		ServerRequestServerTime(GetWorld()->GetTimeSeconds());
+		TimeSyncRunningTime = 0.f;
+	}
+}
+
+void AHAPlayerController::ServerRequestServerTime_Implementation(float TimeOfClientRequest)
+{
+	float ServerTimeOfReciept = GetWorld()->GetTimeSeconds();
+	ClientReportServerTime(TimeOfClientRequest, ServerTimeOfReciept);
+}
+
+void AHAPlayerController::ClientReportServerTime_Implementation(float TimeOfClientRequest, float TimeServerRecivedClientRequest)
+{
+	float RoundTripTime = GetWorld()->GetTimeSeconds() - TimeOfClientRequest;
+	SingleTripTime = 0.5f * RoundTripTime;
+	float CurrentServerTime = TimeServerRecivedClientRequest + SingleTripTime;
+	ClientServerDeltaTime = CurrentServerTime - GetWorld()->GetTimeSeconds();
+}
+
 void AHAPlayerController::SetNumericValueInTextBlock(float Value, UTextBlock* TextBlock)
 {
 	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
@@ -198,5 +270,15 @@ void AHAPlayerController::SetNumericValueInTextBlock(float Value, UTextBlock* Te
 	{
 		FString ValueText = FString::Printf(TEXT("%d"), FMath::FloorToInt(Value));
 		TextBlock->SetText(FText::FromString(ValueText));
+	}
+}
+
+
+void AHAPlayerController::ReceivedPlayer()
+{
+	Super::ReceivedPlayer();
+	if(IsLocalController())
+	{
+		ServerRequestServerTime(GetWorld()->GetTimeSeconds());
 	}
 }
