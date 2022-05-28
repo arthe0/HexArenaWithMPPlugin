@@ -40,6 +40,7 @@ void AProjectileBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 			{
 				if(Hit.GetComponent()->IsA(UHitBoxComponent::StaticClass()) && InstigatorWeapon)
 				{
+
 					UHitBoxComponent* HitBox = Cast<UHitBoxComponent>(Hit.GetComponent());
 					switch (HitBox->HitBoxType)
 					{

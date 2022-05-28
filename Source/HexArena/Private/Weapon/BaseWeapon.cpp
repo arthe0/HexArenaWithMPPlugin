@@ -16,14 +16,22 @@ ABaseWeapon::ABaseWeapon()
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
-	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetupAttachment(RootComponent);
-	SetRootComponent(WeaponMesh);
 
-	WeaponMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-	WeaponMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//static ConstructorHelpers::FObjectFinder<UDataTable> WeaponDataObject(TEXT("DataTable'/Game/Blueprints/Weapon/WeaponDT.WeaponDT'"));
+	//if (WeaponDataObject.Succeeded())
+	//{
+	//	WeaponData = WeaponDataObject.Object->FindRow<FWeaponData>(WeaponName, "");
+	//	UE_LOG(LogTemp, Warning, TEXT("Weapon Data Object Succeede"));
+	//}
 
+	WeaponMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMeshComponent"));
+	WeaponMeshComponent->SetupAttachment(RootComponent);
+	SetRootComponent(WeaponMeshComponent);
+
+	WeaponMeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	WeaponMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
+	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
 	AreaSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AreaSphere"));
 	AreaSphere->SetupAttachment(RootComponent);
 	AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
@@ -42,13 +50,17 @@ void ABaseWeapon::BeginPlay()
 	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &ABaseWeapon::OnSphereOverlap);
 	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &ABaseWeapon::OnSphereEndOverlap);
 
-	FireDelay = WeaponData.FireRate / 6000.f;
+	WeaponMeshComponent->SetSkeletalMesh(WeaponData.WeaponMesh);
 
+	FireDelay = WeaponData.FireRate / 6000.f;
+	WeaponMeshComponent->SetSkeletalMesh(WeaponData.WeaponMesh);
+	
 	if (PickupWidget)
 	{
 		PickupWidget->SetVisibility(false);
 	}
 }
+
 
 void ABaseWeapon::Tick(float DeltaTime)
 {
@@ -88,6 +100,7 @@ void ABaseWeapon::OnPingToHigh(bool bPingTooHigh)
 	bUseSSR = !bPingTooHigh;
 }
 
+
 void ABaseWeapon::OnWeaponStateSet()
 {
 	switch (WeaponState)
@@ -110,9 +123,9 @@ void ABaseWeapon::OnWeaponStateSet()
 void ABaseWeapon::OnEquipped()
 {
 	ShowPickupWidget(false);
-	WeaponMesh->SetSimulatePhysics(false);
-	WeaponMesh->SetEnableGravity(false);
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WeaponMeshComponent->SetSimulatePhysics(false);
+	WeaponMeshComponent->SetEnableGravity(false);
+	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
 	if(HAOwnerCharacter && bUseSSR)
@@ -131,9 +144,9 @@ void ABaseWeapon::OnDropped()
 	{
 		AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	}
-	WeaponMesh->SetSimulatePhysics(true);
-	WeaponMesh->SetEnableGravity(true);
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	WeaponMeshComponent->SetSimulatePhysics(true);
+	WeaponMeshComponent->SetEnableGravity(true);
+	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
 
 	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
@@ -163,18 +176,18 @@ void ABaseWeapon::SetWeaponState(EWeaponState State)
 	case EWeaponState::EWS_Equipped:
 		ShowPickupWidget(false);
 		AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		WeaponMesh->SetSimulatePhysics(false);
-		WeaponMesh->SetEnableGravity(false);
-		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		WeaponMeshComponent->SetSimulatePhysics(false);
+		WeaponMeshComponent->SetEnableGravity(false);
+		WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		break;
 	case EWeaponState::EWS_Dropped:
 		if(HasAuthority())
 		{
 			AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		}
-		WeaponMesh->SetSimulatePhysics(true);
-		WeaponMesh->SetEnableGravity(true);
-		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		WeaponMeshComponent->SetSimulatePhysics(true);
+		WeaponMeshComponent->SetEnableGravity(true);
+		WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 			
 		break;
 	case EWeaponState::EWS_MAX:
@@ -199,7 +212,7 @@ void ABaseWeapon::SetHUDAmmo()
 
 void ABaseWeapon::SpendRound()
 {
-	Ammo = FMath::Clamp(Ammo - 1, 0, MagCapacity);
+	Ammo = FMath::Clamp(Ammo - 1, 0, WeaponData.MagCapacity);
 	SetHUDAmmo();
 	if(HasAuthority())
 	{
@@ -222,7 +235,7 @@ void ABaseWeapon::ClientUpdateAmmo_Implementation(int32 ServerAmmo)
 
 void ABaseWeapon::AddAmmo(int32 AmmoToAdd)
 {
-	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, MagCapacity);
+	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, WeaponData.MagCapacity);
 	SetHUDAmmo();
 	ClientAddAmmo(AmmoToAdd);
 }
@@ -230,7 +243,7 @@ void ABaseWeapon::AddAmmo(int32 AmmoToAdd)
 void ABaseWeapon::ClientAddAmmo_Implementation(int32 AmmoToAdd)
 {
 	if (HasAuthority()) return;
-	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, MagCapacity);
+	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, WeaponData.MagCapacity);
 	SetHUDAmmo();
 }
 
@@ -259,22 +272,22 @@ void ABaseWeapon::ShowPickupWidget(bool bShowWidget)
 
 void ABaseWeapon::Fire(const FVector& HitTarget)
 {
-	if(FireAnimation)
+	if(WeaponData.FireAnimation)
 	{
-		WeaponMesh->PlayAnimation(FireAnimation, false);
+		WeaponMeshComponent->PlayAnimation(WeaponData.FireAnimation, false);
 	}
-	if(BulletShellClass)
+	if(WeaponData.BulletShellClass)
 	{
-		const USkeletalMeshSocket* AmmoEjectSocket = WeaponMesh->GetSocketByName(FName("AmmoEject"));
+		const USkeletalMeshSocket* AmmoEjectSocket = WeaponMeshComponent->GetSocketByName(FName("AmmoEject"));
 		if (AmmoEjectSocket)
 		{
-			FTransform SocketTransform = AmmoEjectSocket->GetSocketTransform(WeaponMesh);
+			FTransform SocketTransform = AmmoEjectSocket->GetSocketTransform(WeaponMeshComponent);
 			
 			UWorld* World = GetWorld();
 			if (World)
 			{
 				World->SpawnActor<ABulletShell>(
-					BulletShellClass,
+					WeaponData.BulletShellClass,
 					SocketTransform.GetLocation(),
 					SocketTransform.GetRotation().Rotator()
 				);
@@ -288,7 +301,7 @@ void ABaseWeapon::Dropped()
 {
 	SetWeaponState(EWeaponState::EWS_Dropped);
 	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
-	WeaponMesh->DetachFromComponent(DetachRules);
+	WeaponMeshComponent->DetachFromComponent(DetachRules);
 	SetOwner(nullptr);
 	HAOwnerController = nullptr;
 	HAOwnerCharacter = nullptr;
@@ -299,5 +312,8 @@ bool ABaseWeapon::IsEmpty()
 	return Ammo <= 0;
 }
 
-
+FName ABaseWeapon::GetWeaponName_Implementation()
+{
+	return WeaponName;
+}
 

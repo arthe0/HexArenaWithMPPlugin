@@ -1,0 +1,114 @@
+[
+	{
+		"Name": "Rifle",
+		"WeaponName": "Cobra",
+		"WeaponMesh": "SkeletalMesh'/Game/Assets/MilitaryWeapDark/Weapons/Assault_Rifle_B.Assault_Rifle_B'",
+		"FireAnimation": "AnimSequence'/Game/Assets/MilitaryWeapDark/Weapons/Anims/Fire_Rifle_W.Fire_Rifle_W'",
+		"ProjectileClass": "BlueprintGeneratedClass'/Game/Blueprints/Weapon/Projectiles/BP_ProjectileBullet.BP_ProjectileBullet_C'",
+		"MagCapacity": 45,
+		"BulletShellClass": "BlueprintGeneratedClass'/Game/Blueprints/Weapon/BulletShels/BP_BulletShel.BP_BulletShel_C'",
+		"AmmoType": "EAT_Rifle",
+		"BaseDamage": 18,
+		"HeadMultiplyer": 2,
+		"NeckMultiplyer": 1.8,
+		"ChestMultiplyer": 1,
+		"StomachMultiplyer": 0.9,
+		"LimbsMultiplyer": 0.8,
+		"WeaponType": "EWT_Rifle",
+		"FireRate": 600,
+		"bSingle": true,
+		"bAutomatic": true,
+		"bBurst": true,
+		"ShotsInBurst": 3,
+		"ZoomedFOV": 80,
+		"ZoomInterpSpeed": 20,
+		"IKProperties":
+		{
+			"AnimPose": "None",
+			"AimOffset": 13,
+			"CustomOffsetTranform":
+			{
+				"Rotation":
+				{
+					"X": 0,
+					"Y": 0,
+					"Z": 0,
+					"W": 1
+				},
+				"Translation":
+				{
+					"X": 0,
+					"Y": 0,
+					"Z": 0
+				},
+				"Scale3D":
+				{
+					"X": 1,
+					"Y": 1,
+					"Z": 1
+				}
+			}
+		},
+		"CrosshairsCenter": "None",
+		"CrosshairsLeft": "None",
+		"CrosshairsRight": "None",
+		"CrosshairsTop": "None",
+		"CrosshairsBottom": "None"
+	},
+	{
+		"Name": "Pistol",
+		"WeaponName": "Beretta",
+		"WeaponMesh": "SkeletalMesh'/Game/Assets/MilitaryWeapDark/Weapons/Pistols_B.Pistols_B'",
+		"FireAnimation": "AnimSequence'/Game/Assets/MilitaryWeapDark/Weapons/Anims/Fire_Pistol_W.Fire_Pistol_W'",
+		"ProjectileClass": "None",
+		"MagCapacity": 15,
+		"BulletShellClass": "BlueprintGeneratedClass'/Game/Blueprints/Weapon/BulletShels/BP_BulletShel.BP_BulletShel_C'",
+		"AmmoType": "EAT_Light",
+		"BaseDamage": 20,
+		"HeadMultiplyer": 2,
+		"NeckMultiplyer": 1.8,
+		"ChestMultiplyer": 1,
+		"StomachMultiplyer": 0.9,
+		"LimbsMultiplyer": 0.8,
+		"WeaponType": "EWT_Rifle",
+		"FireRate": 300,
+		"bSingle": true,
+		"bAutomatic": false,
+		"bBurst": false,
+		"ShotsInBurst": 0,
+		"ZoomedFOV": 80,
+		"ZoomInterpSpeed": 20,
+		"IKProperties":
+		{
+			"AnimPose": "None",
+			"AimOffset": 10,
+			"CustomOffsetTranform":
+			{
+				"Rotation":
+				{
+					"X": 0,
+					"Y": 0,
+					"Z": 0,
+					"W": 1
+				},
+				"Translation":
+				{
+					"X": 0,
+					"Y": 0,
+					"Z": 12
+				},
+				"Scale3D":
+				{
+					"X": 1,
+					"Y": 1,
+					"Z": 1
+				}
+			}
+		},
+		"CrosshairsCenter": "None",
+		"CrosshairsLeft": "None",
+		"CrosshairsRight": "None",
+		"CrosshairsTop": "None",
+		"CrosshairsBottom": "None"
+	}
+]

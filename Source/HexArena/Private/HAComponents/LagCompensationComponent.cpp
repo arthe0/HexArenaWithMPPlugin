@@ -299,8 +299,10 @@ void ULagCompensationComponent::ProjectileServerScoreRequest_Implementation(AHAB
 
 	if(Character && HitCharacter && Confirm.bHitConfirmed)
 	{
+
 		float DamageToCause = 0.f;
 		FWeaponData EquippedWeaponData = Character->GetEquippedWeapon()->WeaponData;
+
 		switch (Confirm.HittedBox)
 		{
 		case EHitBoxType::EHBT_Head:

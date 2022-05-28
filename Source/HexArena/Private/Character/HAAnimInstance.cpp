@@ -82,7 +82,7 @@ void UHAAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	//TODO: Promote this functional to delegate in future
 	if(EquippedWeapon)
 	{
-		IKProperties = EquippedWeapon->IKProperties;
+		IKProperties = EquippedWeapon->WeaponData.IKProperties;
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UHAAnimInstance::SetIKTransforms);
 	}
 	SetVars(DeltaTime);

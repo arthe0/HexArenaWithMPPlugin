@@ -33,7 +33,7 @@ void AProjectileWeapon::Fire(const FVector& HitTarget)
 			{
 				if(InstigatorPawn->IsLocallyControlled()) // Server, host: Using Replicated projectile
 				{
-					SpawnedProjectile = World->SpawnActor<AProjectile>(ProjectileClass,SocketTransform.GetLocation(),TargetRotation,SpawnParams);
+					SpawnedProjectile = World->SpawnActor<AProjectile>(WeaponData.ProjectileClass,SocketTransform.GetLocation(),TargetRotation,SpawnParams);
 					SpawnedProjectile->bUseSSR = false;
 					SpawnedProjectile->SetInstigatorWeapon(this);
 				}
@@ -64,7 +64,7 @@ void AProjectileWeapon::Fire(const FVector& HitTarget)
 		{
 			if(InstigatorPawn->HasAuthority())
 			{
-				SpawnedProjectile = World->SpawnActor<AProjectile>(ProjectileClass, SocketTransform.GetLocation(), TargetRotation, SpawnParams);
+				SpawnedProjectile = World->SpawnActor<AProjectile>(WeaponData.ProjectileClass, SocketTransform.GetLocation(), TargetRotation, SpawnParams);
 				SpawnedProjectile->bUseSSR = false;
 				SpawnedProjectile->SetInstigatorWeapon(this);
 			}

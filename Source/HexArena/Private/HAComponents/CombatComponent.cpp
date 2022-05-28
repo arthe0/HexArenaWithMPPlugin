@@ -93,11 +93,11 @@ void UCombatComponent::SetHUDCrosshairs(float DeltaTime)
 			if(EquippedWeapon)
 			{
 				
-				HUDPackage.CrosshairsCenter = EquippedWeapon->CrosshairsCenter;
-				HUDPackage.CrosshairsLeft = EquippedWeapon->CrosshairsLeft;
-				HUDPackage.CrosshairsRight = EquippedWeapon->CrosshairsRight;
-				HUDPackage.CrosshairsTop = EquippedWeapon->CrosshairsTop;
-				HUDPackage.CrosshairsBottom = EquippedWeapon->CrosshairsBottom;
+				HUDPackage.CrosshairsCenter = EquippedWeapon->WeaponData.CrosshairsCenter;
+				HUDPackage.CrosshairsLeft = EquippedWeapon->WeaponData.CrosshairsLeft;
+				HUDPackage.CrosshairsRight = EquippedWeapon->WeaponData.CrosshairsRight;
+				HUDPackage.CrosshairsTop = EquippedWeapon->WeaponData.CrosshairsTop;
+				HUDPackage.CrosshairsBottom = EquippedWeapon->WeaponData.CrosshairsBottom;
 			}		
 			else
 			{
@@ -185,7 +185,6 @@ void UCombatComponent::InterpFOV(float DeltaTime)
 	}
 }
 
-
 //Should create aim function for usual and server function?
 //TODO: Fix aim speed while changing standing to crouching!!! 
 void UCombatComponent::SetAiming(bool bIsAiming)
@@ -199,18 +198,19 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 		MovementComponent->MaxWalkSpeed = bIsAiming ? BaseWalkSpeed*AimMultiplyer : BaseWalkSpeed;
 
 		MovementComponent->MaxWalkSpeedCrouched = MovementComponent->IsCrouching() ?  BaseWalkCrouchSpeed*AimMultiplyer : BaseWalkCrouchSpeed;	
-
-		
-		bLocalAiming = bIsAiming;
-		
-		if (bAiming)
+	
+		if(Character->IsLocallyControlled())
 		{
-			if (!AimingTimeline.IsPlaying()) AimingTimeline.Play();
-		}
-		else
-		{
-			if (!AimingTimeline.IsReversing()) AimingTimeline.Reverse();
-		}
+			bLocalAiming = bIsAiming;
+			if (bLocalAiming)
+			{
+				if (!AimingTimeline.IsPlaying()) AimingTimeline.Play();
+			}
+			else
+			{
+				if (!AimingTimeline.IsReversing()) AimingTimeline.Reverse();
+			}
+		}	
 	}
 }
 
@@ -226,11 +226,11 @@ void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 		
 		if (bAiming)
 		{
-			if (!AimingTimeline.IsPlaying()) AimingTimeline.Play();
+			AimingTimeline.Play();
 		}
 		else
 		{
-			if (!AimingTimeline.IsReversing()) AimingTimeline.Reverse();
+			AimingTimeline.Reverse();
 		}
 	}
 }
@@ -289,7 +289,7 @@ void UCombatComponent::FireTimerFinished()
 {
 	if (EquippedWeapon == nullptr) return;
 	bCanFire = true;
-	if (bFireButtonPressed && EquippedWeapon->bAutomatic)
+	if (bFireButtonPressed && EquippedWeapon->WeaponData.bAutomatic)
 	{
 		Fire();
 	}
@@ -309,7 +309,7 @@ void UCombatComponent::MulticastFire_Implementation(const FVector_NetQuantize& T
 void UCombatComponent::LocalFire(const FVector_NetQuantize& TraceHitTarget)
 {
 	if (EquippedWeapon == nullptr) return;
-	if (Character && CombatState == ECombatState::ECS_Unoccupide /*&& Character->IsLocallyControlled()*/)
+	if (Character && CombatState == ECombatState::ECS_Unoccupide)
 	{
 		Character->PlayFireMontage(bAiming);
 		EquippedWeapon->Fire(TraceHitTarget);
