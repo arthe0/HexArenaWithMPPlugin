@@ -16,14 +16,6 @@ ABaseWeapon::ABaseWeapon()
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 
-
-	//static ConstructorHelpers::FObjectFinder<UDataTable> WeaponDataObject(TEXT("DataTable'/Game/Blueprints/Weapon/WeaponDT.WeaponDT'"));
-	//if (WeaponDataObject.Succeeded())
-	//{
-	//	WeaponData = WeaponDataObject.Object->FindRow<FWeaponData>(WeaponName, "");
-	//	UE_LOG(LogTemp, Warning, TEXT("Weapon Data Object Succeede"));
-	//}
-
 	WeaponMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMeshComponent"));
 	WeaponMeshComponent->SetupAttachment(RootComponent);
 	SetRootComponent(WeaponMeshComponent);

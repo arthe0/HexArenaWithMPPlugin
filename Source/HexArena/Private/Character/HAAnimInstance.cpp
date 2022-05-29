@@ -18,7 +18,10 @@ void UHAAnimInstance::NativeInitializeAnimation()
 	if(HACharacter)
 	{
 		CharacterMesh = HACharacter->GetMesh();
+		if(!HACharacter->GetCombat()) return;
+		HACharacter->GetCombat()->OnChangeWeaponDelegate.BindDynamic(this, &ThisClass::OnWeaponChanged);
 	}
+
 }
 
 void UHAAnimInstance::NativeUpdateAnimation(float DeltaTime)
@@ -82,7 +85,7 @@ void UHAAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	//TODO: Promote this functional to delegate in future
 	if(EquippedWeapon)
 	{
-		IKProperties = EquippedWeapon->WeaponData.IKProperties;
+
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UHAAnimInstance::SetIKTransforms);
 	}
 	SetVars(DeltaTime);
@@ -103,7 +106,17 @@ void UHAAnimInstance::CalculateWeaponSway(const float DeltaTime)
 
 }
 
+void UHAAnimInstance::OnWeaponChanged(ABaseWeapon* Weapon)
+{
+	EquippedWeapon = Weapon;
+	IKProperties = EquippedWeapon->WeaponData.IKProperties;
+	RightHandModifier = IKProperties.RightHandModifier;
+	LeftHandModifier = IKProperties.LeftHandModifier;
+	UE_LOG(LogTemp, Warning, TEXT("Weapon Changed!"));
+}
+
 void UHAAnimInstance::SetIKTransforms()
 {
 	RightHandToSightTransform = EquippedWeapon->GetsightsWorldTransform().GetRelativeTransform(CharacterMesh->GetSocketTransform(FName("hand_r")));
+	
 }

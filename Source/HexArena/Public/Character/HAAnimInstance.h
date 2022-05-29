@@ -6,6 +6,7 @@
 #include "Animation/AnimInstance.h"
 #include "HATypes/TurningInPlace.h"
 #include "Weapon/BaseWeapon.h"
+#include "HAComponents/CombatComponent.h"
 #include "HAAnimInstance.generated.h"
 
 class ABaseWeapon;
@@ -26,11 +27,13 @@ protected:
 
 	virtual void SetIKTransforms();
 
-
+	UFUNCTION()
+	virtual void OnWeaponChanged(ABaseWeapon* Weapon);
 
 	//FPP Functions END
 	
 private:
+
 	UPROPERTY(BlueprintReadOnly, Category = Character, meta = (AllowPrivateAccess = "true"))
 	AHABaseCharacter* HACharacter;
 
@@ -73,6 +76,13 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anim", meta = (AllowPrivateAccess = "true"))
 	FTransform RightHandToSightTransform;
+
+	/** Modifiers for elbow position for every gun*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anim", meta = (AllowPrivateAccess = "true"))
+	FVector RightHandModifier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Anim", meta = (AllowPrivateAccess = "true"))
+	FVector LeftHandModifier;
 	//FPP Properties END
 
 	UPROPERTY(BlueprintReadOnly, Category = Character, meta = (AllowPrivateAccess = "true"))

@@ -264,4 +264,5 @@ public:
 	bool IsLocallyReloading();
 
 	FORCEINLINE ULagCompensationComponent* GetLagCompensation () const { return LagCompensation; }
+	FORCEINLINE UCombatComponent* GetCombat () const { return Combat; }
 };

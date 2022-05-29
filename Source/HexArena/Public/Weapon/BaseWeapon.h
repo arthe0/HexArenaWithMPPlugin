@@ -29,10 +29,16 @@ struct FIKProperties
 	UAnimSequence* AnimPose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float AimOffset = 10.f;
+	float AimOffset = 10.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		FTransform CustomOffsetTranform;
+	FTransform CustomOffsetTranform;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector LeftHandModifier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector RightHandModifier;
 };
 
 UENUM(BlueprintType)
@@ -190,13 +196,6 @@ public:
 	void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
 
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "IK")
-	FTransform GetsightsWorldTransform() const;
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponData")
-	FName GetWeaponName();
-
 	/*
 	* WeaponData
 	*/
@@ -302,4 +301,10 @@ public:
 	FORCEINLINE EAmmoType GetWeaponAmmoType() const { return WeaponData.AmmoType; }
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponData.WeaponType; }
 	virtual FORCEINLINE FTransform GetsightsWorldTransform_Implementation() { return WeaponMeshComponent->GetSocketTransform(FName("Sights")); }
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "IK")
+	FTransform GetsightsWorldTransform() const;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponData")
+	FName GetWeaponName();
 };

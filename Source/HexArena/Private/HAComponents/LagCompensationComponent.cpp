@@ -13,20 +13,14 @@
 
 ULagCompensationComponent::ULagCompensationComponent()
 {
-	
 	PrimaryComponentTick.bCanEverTick = true;
-
 }
-
 
 // Called when the game starts
 void ULagCompensationComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-
 }
-
 
 void ULagCompensationComponent::SaveFramePackage(FFramePackage& Package)
 {
@@ -367,7 +361,6 @@ void ULagCompensationComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 		FFramePackage ThisFrame;
 		SaveFramePackage(ThisFrame);
 		FrameHistroy.AddHead(ThisFrame);
-
 		//ShowFramePackage(ThisFrame, FColor::Green);
 	}
 }

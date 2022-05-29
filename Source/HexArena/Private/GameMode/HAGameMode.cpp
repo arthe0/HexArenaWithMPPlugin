@@ -8,6 +8,32 @@
 #include "GameFramework/PlayerStart.h"
 #include "PlayerStates//HaPlayerState.h"
 
+AHAGameMode::AHAGameMode()
+{
+	bDelayedStart = true;
+}
+
+void AHAGameMode::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if(MatchState == MatchState::WaitingToStart)
+	{
+		CountdownTime = WarmupTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
+		if(CountdownTime <= 0.f)
+		{
+			StartMatch();
+		}
+	}
+}
+
+void AHAGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+
+	LevelStartingTime = GetWorld()->GetTimeSeconds();
+}
+
 void AHAGameMode::PlayerEliminated(class AHABaseCharacter* Eliminated, AHAPlayerController* EliminatedPC, AHAPlayerController* AttackerPC)
 {
 	AHaPlayerState* AttackerPlayerState = AttackerPC ? Cast<AHaPlayerState>(AttackerPC->PlayerState) : nullptr;
@@ -44,3 +70,5 @@ void AHAGameMode::RequestRespawn(class AHABaseCharacter* Eliminated, AController
 		RestartPlayerAtPlayerStart(EliminatedPC, PlayerStarts[RandomSelect]);
 	}
 }
+
+

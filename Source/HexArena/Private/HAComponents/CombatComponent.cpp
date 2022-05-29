@@ -202,13 +202,14 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 		if(Character->IsLocallyControlled())
 		{
 			bLocalAiming = bIsAiming;
+
 			if (bLocalAiming)
 			{
-				if (!AimingTimeline.IsPlaying()) AimingTimeline.Play();
+				AimingTimeline.Play();
 			}
 			else
 			{
-				if (!AimingTimeline.IsReversing()) AimingTimeline.Reverse();
+				AimingTimeline.Reverse();
 			}
 		}	
 	}
@@ -231,7 +232,7 @@ void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 		else
 		{
 			AimingTimeline.Reverse();
-		}
+		}	
 	}
 }
 
@@ -242,6 +243,17 @@ void UCombatComponent::OnRep_Aiming()
 	{
 		bAiming = bLocalAiming;
 	}
+	if (Character && !Character->IsLocallyControlled())
+	{
+		if (bAiming)
+		{
+			AimingTimeline.Play();
+		}
+		else
+		{
+			AimingTimeline.Reverse();
+		}
+	}	
 }
 
 /*
@@ -407,6 +419,7 @@ void UCombatComponent::EquipWeapon(ABaseWeapon* WeaponToEquip)
 	
 	EquippedWeapon->SetOwner(Character);
 	EquippedWeapon->SetHUDAmmo();
+	OnChangeWeaponDelegate.ExecuteIfBound(EquippedWeapon);
 
 	if(CarriedAmmoMap.Contains(EquippedWeapon->GetWeaponAmmoType()))
 	{
@@ -417,7 +430,9 @@ void UCombatComponent::EquipWeapon(ABaseWeapon* WeaponToEquip)
 	if(Controller)
 	{
 		Controller->SetHUDAmmoOfType(CarriedAmmo);
+		Controller->SetHUDWeaponAmmo(EquippedWeapon->GetAmmo());
 	}
+
 }
 
 void UCombatComponent::Reload()
@@ -519,6 +534,7 @@ void UCombatComponent::OnRep_EquippedWeapon()
 	if(EquippedWeapon && Character)
 	{
 		EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
+		OnChangeWeaponDelegate.ExecuteIfBound(EquippedWeapon);
 		
 		const USkeletalMeshSocket* RightHandSocket = Character->GetMesh()->GetSocketByName(FName("RightHandSocket"));
 		if (RightHandSocket)

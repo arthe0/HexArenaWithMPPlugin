@@ -650,3 +650,4 @@ bool AHABaseCharacter::IsLocallyReloading()
 	return Combat->bLocalyReloading;
 }
 
+

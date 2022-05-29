@@ -12,6 +12,8 @@
 
 #define TRACE_LENGTH 80000.f
 
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnChangeWeaponDelegate, ABaseWeapon*, EquippedWeapon);
+
 class ABaseWeapon;
 class AHABaseCharacter;
 class AHAPlayerController;
@@ -26,6 +28,10 @@ class HEXARENA_API UCombatComponent : public UActorComponent
 public:	
 	friend AHABaseCharacter;
 	UCombatComponent();
+
+
+	// Custom Delegate to let know other classes which weapon character holding now
+	FOnChangeWeaponDelegate OnChangeWeaponDelegate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Aiming")
 	UCurveFloat* AimingCurve;
@@ -78,6 +84,8 @@ protected:
 	void FinishReloading();
 	
 private:
+
+
 	AHABaseCharacter* Character;
 
 	AHAPlayerController* Controller; 
