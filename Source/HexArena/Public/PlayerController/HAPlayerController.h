@@ -10,6 +10,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHighPingDelegate, bool, bPingToHigh
 
 class AHAHUD;
 class UTextBlock;
+class UCharacterOverlay;
 
 UCLASS()
 class HEXARENA_API AHAPlayerController : public APlayerController
@@ -19,24 +20,30 @@ class HEXARENA_API AHAPlayerController : public APlayerController
 public:
 	virtual void Tick(float DeltaTime) override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	void SetHUDHealth (float Health, float MaxHealth);
 	void SetHUDKills (float Kills);
 	void SetHUDDeaths (int32 Deaths);
 	void SetHUDWeaponAmmo (int32 Ammo);
 	void SetHUDAmmoOfType (int32 Ammo);
 	void SetHUDTimer(float Time);
+	void SetHUDAnnouncmentTimer(float Time);
 	virtual void OnPossess(APawn* InPawn) override;
 
 	virtual float GetServerTime();
 	virtual void ReceivedPlayer() override;
+	void OnMatchStateSet(FName State);
+	void HandleCooldown();
+	void HandleMatchHasStarted();
 
 	float SingleTripTime = 0.f;
-
 	FHighPingDelegate HighPingDelegate;
 protected:
 	virtual void BeginPlay() override;
 
 	void SetHUDTime();
+	void PollInit();
 
 	/**
 	* Synchronizing client and server time 
@@ -46,6 +53,12 @@ protected:
 
 	float TimeSyncRunningTime = 0.f;
 	void CheckTimeSync(float DeltaTime);
+
+	UFUNCTION(Server, Reliable)
+	void ServerCheckMatchState();
+
+	UFUNCTION(Client, Reliable)
+	void ClientJoinMidgame(FName StateOfMatch, float WarmupT, float RoundT, float StartingT);
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestServerTime(float TimeOfClientRequest);
@@ -66,8 +79,18 @@ private:
 
 	void SetNumericValueInTextBlock(float Value, UTextBlock* TextBlock);
 
-	float RoundTime = 120.f;
+	float LevelStartingTime = 0.f;
+	float RoundTime = 0.f;
+	float WarmupTime = 0.f;
 	uint32 TimerInt = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_MatchState)
+	FName MatchState;
+
+	UFUNCTION()
+	void OnRep_MatchState();
+
+	UCharacterOverlay* CharacterOverlay;
 
 	float HighPingRunningTime = 0.f;
 
@@ -84,4 +107,11 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	float HighPingThreshold = 100.f;
+
+	bool bInitializeCharacterOverlay = false;
+
+	float HUDHealth;
+	float HUDMaxHealth;
+	float HUDKills;
+	int32 HUDDeaths;
 };

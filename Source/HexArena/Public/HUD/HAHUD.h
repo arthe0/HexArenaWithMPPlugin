@@ -23,6 +23,7 @@ public:
 
 class UCharacterOverlay;
 class UUserWidget;
+class UAnnouncment;
 
 UCLASS()
 class HEXARENA_API AHAHUD : public AHUD
@@ -35,10 +36,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = "PlayerStats")
 	TSubclassOf<UUserWidget> CharacterOverlayClass;
 
+	UPROPERTY()
 	UCharacterOverlay* CharacterOverlay;
+
+	void AddCharacterOverlay();
+
+	UPROPERTY(EditAnywhere, Category = "Announcments")
+	TSubclassOf<UUserWidget> AnnouncmentClass;
+
+	UPROPERTY()
+	UAnnouncment* Announcment;
+
+	void AddAnnouncment();
+
 private:
 	virtual void BeginPlay()override;
-	void AddCharacterOverlay();
 
 	FHUDPackage HUDPackage;
 

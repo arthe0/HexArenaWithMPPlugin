@@ -4,12 +4,11 @@
 #include "HUD/HAHUD.h"
 #include "GameFramework/PlayerController.h"
 #include "HUD/CharacterOverlay.h"
+#include "HUD/Announcment.h"
 
 void AHAHUD::BeginPlay()
 {
 	Super::BeginPlay();
-
-	AddCharacterOverlay();
 }
 
 void AHAHUD::AddCharacterOverlay()
@@ -20,7 +19,16 @@ void AHAHUD::AddCharacterOverlay()
 		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
 		CharacterOverlay->AddToViewport();
 	}
+}
 
+void AHAHUD::AddAnnouncment()
+{
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (PlayerController && AnnouncmentClass)
+	{
+		Announcment = CreateWidget<UAnnouncment>(PlayerController, AnnouncmentClass);
+		Announcment->AddToViewport();
+	}
 }
 
 void AHAHUD::DrawHUD()

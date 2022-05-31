@@ -8,6 +8,10 @@
 #include "Components/TextBlock.h"
 #include "Character/HABaseCharacter.h"
 #include "Components/Image.h"
+#include "Net/UnrealNetwork.h"
+#include "GameMode//HAGameMode.h"
+#include "HUD/Announcment.h"
+#include "Kismet/GameplayStatics.h"
 
 
 void AHAPlayerController::BeginPlay()
@@ -15,6 +19,14 @@ void AHAPlayerController::BeginPlay()
 	Super::BeginPlay();
 
 	HAHUD = Cast<AHAHUD>(GetHUD());
+	ServerCheckMatchState();
+}
+
+void AHAPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AHAPlayerController, MatchState);
 }
 
 void AHAPlayerController::Tick(float DeltaTime)
@@ -23,9 +35,11 @@ void AHAPlayerController::Tick(float DeltaTime)
 	SetHUDTime();
 	
 	CheckTimeSync(DeltaTime);
+	PollInit();
 
 	CheckPing(DeltaTime);
 }
+
 
 void AHAPlayerController::CheckPing(float DeltaTime)
 {
@@ -135,6 +149,12 @@ void AHAPlayerController::SetHUDHealth(float Health, float MaxHealth)
 		FString HealthText = FString::Printf(TEXT("%d/%d"), FMath::CeilToInt(Health), FMath::CeilToInt(MaxHealth));
 		HAHUD->CharacterOverlay->HealthText->SetText(FText::FromString(HealthText));
 	}
+	else
+	{
+		bInitializeCharacterOverlay = true;
+		HUDHealth = Health;
+		HUDMaxHealth = MaxHealth;
+	}
 }
 
 void AHAPlayerController::SetHUDKills(float Kills)
@@ -149,6 +169,11 @@ void AHAPlayerController::SetHUDKills(float Kills)
 	{
 		FString KillsText = FString::Printf(TEXT("%d"), FMath::FloorToInt(Kills));
 		HAHUD->CharacterOverlay->StatsKills->SetText(FText::FromString(KillsText));
+	}
+	else
+	{
+		bInitializeCharacterOverlay = true;
+		HUDKills = Kills;
 	}
 }
 
@@ -165,6 +190,11 @@ void AHAPlayerController::SetHUDDeaths(int32 Deaths)
 		UE_LOG(LogTemp, Warning, TEXT("Trying to accsess HUD and set deaths: %d"), Deaths);
 		FString DeathsText = FString::Printf(TEXT("%d"), Deaths);
 		HAHUD->CharacterOverlay->StatsDeaths->SetText(FText::FromString(DeathsText));
+	}
+	else
+	{
+		bInitializeCharacterOverlay = true;
+		HUDDeaths = Deaths;
 	}
 }
 
@@ -217,15 +247,61 @@ void AHAPlayerController::SetHUDTimer(float Time)
 	}
 }
 
+void AHAPlayerController::SetHUDAnnouncmentTimer(float Time)
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->Announcment &&
+		HAHUD->Announcment->WarmupTime;
+
+	if (bHUDValid)
+	{
+		int32 Minuts = FMath::FloorToInt(Time / 60.0f);
+		int32 Seconds = Time - Minuts * 60;
+
+		FString TimerText = FString::Printf(TEXT("%02d : %02d"), Minuts, Seconds);
+		HAHUD->Announcment->WarmupTime->SetText(FText::FromString(TimerText));
+	}
+}
+
 void AHAPlayerController::SetHUDTime()
 {
-	uint32 SecondsLeft = FMath::CeilToInt(RoundTime - GetServerTime());
+	float TimeLeft = 0.f;
+	if (MatchState == MatchState::WaitingToStart) TimeLeft = WarmupTime - GetServerTime() + LevelStartingTime;
+	else if (MatchState == MatchState::InProgress) TimeLeft = WarmupTime + RoundTime - GetServerTime() + LevelStartingTime;
+
+	uint32 SecondsLeft = FMath::CeilToInt(TimeLeft);
 	if(TimerInt != SecondsLeft)
 	{
-		SetHUDTimer(RoundTime - GetServerTime());
+		if(MatchState == MatchState::WaitingToStart)
+		{
+			SetHUDAnnouncmentTimer(TimeLeft);
+		}
+		if (MatchState == MatchState::InProgress)
+		{
+			SetHUDTimer(TimeLeft);
+		}	
 	}
 
 	TimerInt = SecondsLeft;
+}
+
+void AHAPlayerController::PollInit()
+{
+	if(CharacterOverlay == nullptr)
+	{
+		if(HAHUD && HAHUD->CharacterOverlay)
+		{
+			CharacterOverlay = HAHUD->CharacterOverlay;
+			if(CharacterOverlay)
+			{
+				SetHUDHealth(HUDHealth, HUDMaxHealth);
+				SetHUDKills(HUDKills);
+				SetHUDDeaths(HUDDeaths);
+			}
+		}
+	}
 }
 
 float AHAPlayerController::GetServerTime()
@@ -241,6 +317,38 @@ void AHAPlayerController::CheckTimeSync(float DeltaTime)
 	{
 		ServerRequestServerTime(GetWorld()->GetTimeSeconds());
 		TimeSyncRunningTime = 0.f;
+	}
+}
+
+void AHAPlayerController::ServerCheckMatchState_Implementation()
+{
+	AHAGameMode* GameMode = Cast<AHAGameMode>(UGameplayStatics::GetGameMode(this));
+	if(GameMode)
+	{
+		LevelStartingTime = GameMode->LevelStartingTime;
+		WarmupTime = GameMode->WarmupTime;
+		RoundTime = GameMode->RoundTime;
+		MatchState = GameMode->GetMatchState();
+		ClientJoinMidgame(MatchState, WarmupTime, RoundTime, LevelStartingTime);
+
+		if(HAHUD && MatchState == MatchState::WaitingToStart)
+		{
+			HAHUD->AddAnnouncment();
+		}
+	}
+}
+
+void AHAPlayerController::ClientJoinMidgame_Implementation(FName StateOfMatch, float WarmupT, float RoundT, float StartingT)
+{
+	LevelStartingTime = StartingT;
+	WarmupTime = WarmupT;
+	RoundTime = RoundT;
+	MatchState = StateOfMatch;
+	OnMatchStateSet(MatchState);
+
+	if (HAHUD && MatchState == MatchState::WaitingToStart)
+	{
+		HAHUD->AddAnnouncment();
 	}
 }
 
@@ -282,3 +390,58 @@ void AHAPlayerController::ReceivedPlayer()
 		ServerRequestServerTime(GetWorld()->GetTimeSeconds());
 	}
 }
+
+void AHAPlayerController::OnMatchStateSet(FName State)
+{
+	MatchState = State;
+
+	if(MatchState == MatchState::InProgress)
+	{
+		HandleMatchHasStarted();
+	}
+	else if(MatchState == MatchState::Cooldown)
+	{
+		 HandleCooldown();
+	}
+}
+
+
+void AHAPlayerController::OnRep_MatchState()
+{
+	if (MatchState == MatchState::InProgress)
+	{
+		HandleMatchHasStarted();
+	}
+	else if (MatchState == MatchState::Cooldown)
+	{
+		HandleCooldown();
+	}
+}
+
+void AHAPlayerController::HandleMatchHasStarted()
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+	if (HAHUD)
+	{
+		HAHUD->AddCharacterOverlay();
+		if (HAHUD->Announcment)
+		{
+			HAHUD->Announcment->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+}
+
+void AHAPlayerController::HandleCooldown()
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+	if (HAHUD)
+	{
+		HAHUD->CharacterOverlay->RemoveFromParent();
+		if (HAHUD->Announcment)
+		{
+			HAHUD->Announcment->SetVisibility(ESlateVisibility::Visible);
+		}
+	}
+}
+
+

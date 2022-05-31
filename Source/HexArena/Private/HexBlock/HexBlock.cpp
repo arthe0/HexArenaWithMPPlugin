@@ -3,6 +3,7 @@
 
 #include "HexBlock/HexBlock.h"
 #include "Components/StaticMeshComponent.h"
+#include "Net/UnrealNetwork.h"
 
 AHexBlock::AHexBlock()
 {
@@ -30,39 +31,43 @@ void AHexBlock::BeginPlay()
 
 	RiseLocation.Z += MovingMultiplyer;
 	LowerLocation.Z -= MovingMultiplyer;
-	
-
-	//if (LowerCurve)
-	//{
-	//	LowerTimeline.AddInterpFloat(LowerCurve, TimelimeFloat);
-	//}
 }
+
 
 void AHexBlock::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	RiseTimeline.TickTimeline(DeltaTime);
-	//LowerTimeline.TickTimeline(DeltaTime);
 }
 
 void AHexBlock::TimelineProgress(float Value)
 {
 	FVector NewLocation = FMath::Lerp(CurrentLocation, MoveToLocation, Value);
+	ServerTimelineProgress(NewLocation);
+}
+
+void AHexBlock::ServerTimelineProgress_Implementation(const FVector_NetQuantize& NewLocation)
+{
+	MulticastTimelineProgress(NewLocation);
+}
+
+void AHexBlock::MulticastTimelineProgress_Implementation(const FVector_NetQuantize& NewLocation)
+{
 	SetActorLocation(NewLocation);
-	UE_LOG(LogTemp, Warning, TEXT("Rising!"));
 }
 
 void AHexBlock::RiseBlock()
 {
+	BlockState = EBlockState::EBS_Rised;
 	CurrentLocation = GetActorLocation();
 	MoveToLocation = RiseLocation;
 	RiseTimeline.PlayFromStart();
-	UE_LOG(LogTemp, Warning, TEXT("Rising block!"));
 }
 
 void AHexBlock::LowerBlock()
 {
+	BlockState = EBlockState::EBS_Lowered;
 	CurrentLocation = GetActorLocation();
 	MoveToLocation = LowerLocation;
 	RiseTimeline.PlayFromStart();
@@ -70,6 +75,7 @@ void AHexBlock::LowerBlock()
 
 void AHexBlock::StartPosition()
 {
+	BlockState = EBlockState::EBS_Default;
 	CurrentLocation = GetActorLocation();
 	MoveToLocation = DefaultLocation;
 	RiseTimeline.PlayFromStart();
