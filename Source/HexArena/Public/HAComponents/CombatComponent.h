@@ -12,7 +12,7 @@
 
 #define TRACE_LENGTH 80000.f
 
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnChangeWeaponDelegate, ABaseWeapon*, EquippedWeapon);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChangeWeaponDelegate, ABaseWeapon*, EquippedWeapon);
 
 class ABaseWeapon;
 class AHABaseCharacter;
@@ -52,6 +52,7 @@ protected:
 	void OnRep_EquippedWeapon();
 
 	void SetAiming(bool bIsAiming);
+	void CalculateHipSpread(float DeltaTime);
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetAiming(bool bIsAiming);
@@ -71,7 +72,7 @@ protected:
 	void TimelineProgress(const float Value);
 
 	void TraceUnderCrosshairs(FHitResult& TraceHitResult);
-	void SetHUDCrosshairs(float DeltaTime);
+	void SetHUDCrosshairs();
 	void InterpFOV(float DeltaTime);
 
 	UFUNCTION(Server, Reliable)
@@ -120,6 +121,7 @@ private:
 	/*
 	* HUD and crosshairs
 	*/
+	float HipSpread = 0.f;
 
 	float CrosshairVelocityFactor;
 	float CrosshairInAirFactor;

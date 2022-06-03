@@ -11,6 +11,10 @@ AHexBlock::AHexBlock()
 	HexMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HexStaticMesh"));
 	HexMeshComponent->SetupAttachment(GetRootComponent());
 	SetRootComponent(HexMeshComponent);
+
+	PlatformMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlatformStaticMesh"));
+	PlatformMeshComponent->SetupAttachment(GetRootComponent());
+
 }
 
 void AHexBlock::BeginPlay()

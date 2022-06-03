@@ -22,14 +22,18 @@
 #include "Weapon//WeaponTypes.h"
 #include "Components/BoxComponent.h"
 #include "HAComponents/LagCompensationComponent.h"
+#include "HAComponents/HAMovementComponent.h"
+#include "HAComponents/Inventory.h"
 
-AHABaseCharacter::AHABaseCharacter()
+AHABaseCharacter::AHABaseCharacter(const FObjectInitializer& ObjInit)
+	:Super(ObjInit.SetDefaultSubobjectClass<UHAMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = true;
 
 	GetMesh()->SetTickGroup(ETickingGroup::TG_PostUpdateWork);
 	GetMesh()->bVisibleInReflectionCaptures = true;
 	GetMesh()->bCastHiddenShadow = true;
+	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
 	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
 
@@ -40,6 +44,7 @@ AHABaseCharacter::AHABaseCharacter()
 	ClientMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ClientMesh"));
 	ClientMesh->SetCastShadow(false);
 	ClientMesh->bVisibleInReflectionCaptures = false;
+	ClientMesh->SetOnlyOwnerSee(true);
 	ClientMesh->SetTickGroup(ETickingGroup::TG_PostUpdateWork);
 	ClientMesh->SetupAttachment(GetMesh());
 
@@ -54,6 +59,9 @@ AHABaseCharacter::AHABaseCharacter()
 
 	LagCompensation = CreateDefaultSubobject<ULagCompensationComponent>(TEXT("LagCompensationComponent"));
 
+	Inventory = CreateDefaultSubobject<UInventory>(TEXT("InventoryComponent"));
+	Inventory->SetIsReplicated(true);
+
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
 	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
@@ -61,7 +69,7 @@ AHABaseCharacter::AHABaseCharacter()
 	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
 
 	/*
-	*	Server HitBoxes 
+	*	HitBoxes 
 	*/
 
 	HeadBox = CreateDefaultSubobject<UHitBoxComponent>(TEXT("HeadBox"));
@@ -166,7 +174,7 @@ void AHABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION(AHABaseCharacter, OverlappingWeapon, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AHABaseCharacter, OverlappingPickup, COND_OwnerOnly);
 }
 
 void AHABaseCharacter::BeginPlay()
@@ -174,16 +182,6 @@ void AHABaseCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	HAPlayerController = GetPlayerController();
-
-	if (IsLocallyControlled())
-	{
-		ClientMesh->HideBoneByName("neck_01", PBO_None);
-		GetMesh()->SetVisibility(false);
-	}
-	else
-	{	
-		ClientMesh->DestroyComponent();
-	}
 }
 
 
@@ -238,6 +236,11 @@ void AHABaseCharacter::PostInitializeComponents()
 		{
 			LagCompensation->Controller = Cast<AHAPlayerController>(Controller);
 		}
+	}
+
+	if(Inventory)
+	{ 
+		Inventory->Character = this;
 	}
 }
 
@@ -328,27 +331,76 @@ void AHABaseCharacter::TurnAround(float Amount)
 	AddControllerYawInput(Amount);
 }
 
+/*
+* Pickups
+*/
+
 void AHABaseCharacter::EquipButtonPressed()
 {
-	if(Combat)
+	if (HasAuthority())
+	{	
+		if (!OverlappingPickup) return;
+
+		switch (OverlappingPickup->PickupType)
+		{
+		case EPickupTypes::EPT_Weapon:
+			EquipWeaponHandle(OverlappingPickup);
+			break;
+
+		case EPickupTypes::EPT_Ammo:
+			EquipAmmoHandle(OverlappingPickup);
+			break;
+
+		case EPickupTypes::EPT_PowerUp:
+			EquipAmmoHandle(OverlappingPickup);
+			break;
+		}
+	}
+	else
 	{
-		if(HasAuthority())
-		{
-			Combat->EquipWeapon(OverlappingWeapon);
-		}
-		else
-		{
-			ServerEquipButtonPressed();
-		}
+		ServerEquipButtonPressed();
 	}
 }
 
 void AHABaseCharacter::ServerEquipButtonPressed_Implementation()
 {
+	if (!OverlappingPickup) return;
+
+	switch (OverlappingPickup->PickupType)
+	{
+	case EPickupTypes::EPT_Weapon:
+		EquipWeaponHandle(OverlappingPickup);
+		break;
+
+	case EPickupTypes::EPT_Ammo:
+		EquipAmmoHandle(OverlappingPickup);
+		break;
+
+	case EPickupTypes::EPT_PowerUp:
+		EquipAmmoHandle(OverlappingPickup);
+		break;
+	}
+}
+
+void AHABaseCharacter::EquipWeaponHandle(ABasePickup* Pickup)
+{
 	if (Combat)
 	{
-		Combat->EquipWeapon(OverlappingWeapon);
+		Combat->EquipWeapon(Cast<ABaseWeapon>(OverlappingPickup));
 	}
+}
+
+void AHABaseCharacter::EquipAmmoHandle(ABasePickup* Pickup)
+{
+	if(Inventory)
+	{
+		
+	}
+}
+
+void AHABaseCharacter::EquipPowerUpHandle(ABasePickup* Pickup)
+{
+
 }
 
 void AHABaseCharacter::CrouchButtonPressed()
@@ -399,6 +451,16 @@ void AHABaseCharacter::ReloadButtonPressed()
 	{
 		Combat->Reload();
 	}
+}
+
+void AHABaseCharacter::SprintButtonPressed()
+{
+	//GetMovementComponent()->Run();
+}
+
+void AHABaseCharacter::SprintButtonReleased()
+{
+	//GetMovementComponent()->EndRun();
 }
 
 void AHABaseCharacter::AimOffset(float DeltaTime)
@@ -595,31 +657,31 @@ FVector AHABaseCharacter::GetHitTarget() const
 	return Combat->HitTarget;
 }
 
-void AHABaseCharacter::SetOverlappingWeapon(ABaseWeapon* Weapon)
+void AHABaseCharacter::SetOverlappingPickup(ABasePickup* Pickup)
 {
-	if (OverlappingWeapon)
+	if (OverlappingPickup)
 	{
-		OverlappingWeapon->ShowPickupWidget(false);
+		OverlappingPickup->ShowPickupWidget(false);
 	}
-	OverlappingWeapon = Weapon;
+	OverlappingPickup = Pickup;
 	if(IsLocallyControlled())
 	{
-		if (OverlappingWeapon)
+		if (OverlappingPickup)
 		{
-			OverlappingWeapon->ShowPickupWidget(true);
+			OverlappingPickup->ShowPickupWidget(true);
 		}
 	}
 }
 
-void AHABaseCharacter::OnRep_OverlappingWeapon(ABaseWeapon* LastWeapon)
+void AHABaseCharacter::OnRep_OverlappingPickup(ABasePickup* LastPickup)
 {
-	if(OverlappingWeapon)
+	if(OverlappingPickup)
 	{
-		OverlappingWeapon->ShowPickupWidget(true);
+		OverlappingPickup->ShowPickupWidget(true);
 	}
-	if(LastWeapon)
+	if(LastPickup)
 	{
-		LastWeapon->ShowPickupWidget(false);
+		LastPickup->ShowPickupWidget(false);
 	}
 }
 

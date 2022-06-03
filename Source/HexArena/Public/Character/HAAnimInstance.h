@@ -20,6 +20,8 @@ public:
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaTime) override;
 
+	FOnChangeWeaponDelegate OnChangedWeapon;
+
 protected:
 	//FPP Functions START
 	virtual void SetVars(const float DelataTime);

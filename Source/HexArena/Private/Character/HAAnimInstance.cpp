@@ -19,7 +19,7 @@ void UHAAnimInstance::NativeInitializeAnimation()
 	{
 		CharacterMesh = HACharacter->GetMesh();
 		if(!HACharacter->GetCombat()) return;
-		HACharacter->GetCombat()->OnChangeWeaponDelegate.BindDynamic(this, &ThisClass::OnWeaponChanged);
+		HACharacter->GetCombat()->OnChangeWeaponDelegate.AddDynamic(this, &ThisClass::OnWeaponChanged);
 	}
 
 }

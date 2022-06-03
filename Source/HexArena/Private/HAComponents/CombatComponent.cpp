@@ -73,13 +73,17 @@ void UCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 		FHitResult HitResult;
 		TraceUnderCrosshairs(HitResult);
 		HitTarget = !HitResult.ImpactPoint.IsZero() ? HitResult.ImpactPoint : HitResult.TraceEnd;
-		SetHUDCrosshairs(DeltaTime);
+		if(!bAiming && EquippedWeapon)
+		{
+			CalculateHipSpread(DeltaTime);
+		}
+		SetHUDCrosshairs();
 		InterpFOV(DeltaTime);
 	}
 	
 }
 
-void UCombatComponent::SetHUDCrosshairs(float DeltaTime)
+void UCombatComponent::SetHUDCrosshairs()
 {
 	if(Character == nullptr || Character->Controller == nullptr) return;
 
@@ -107,45 +111,51 @@ void UCombatComponent::SetHUDCrosshairs(float DeltaTime)
 				HUDPackage.CrosshairsTop = nullptr;
 				HUDPackage.CrosshairsBottom = nullptr;
 			}
-			//Calculate crosshair spread
-			//[0, 600] -> [0, 1]
-			FVector2D WalkSpeedRange(0.f, Character->GetCharacterMovement()->MaxWalkSpeed);
-			FVector2D VelocityMultiplyerRange(0.f, 1.f);
-			FVector Velocity = Character->GetVelocity();
-			Velocity.Z = 0.f;
 
-			CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityMultiplyerRange, Velocity.Size());
-
-			if(Character->GetCharacterMovement()->IsFalling())
-			{
-				CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 2.5f, DeltaTime, 2.5f);
-			}
-			else
-			{
-				CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, 30.f);
-			}
-
-			if(bAiming)
-			{
-				CrosshairInAimFactor = FMath::FInterpTo(CrosshairInAimFactor, ADSWeight * 2.f, DeltaTime, 30.f);
-			}
-			else
-			{
-				CrosshairInAimFactor = FMath::FInterpTo(CrosshairInAimFactor, ADSWeight * 2.f, DeltaTime, 30.f);
-			}
-
-			CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, 30.f);
-
-			HUDPackage.CrosshairSpread = 
-			2.f+
-			CrosshairVelocityFactor + 
-			CrosshairInAirFactor -
-			CrosshairInAimFactor +
-			CrosshairShootingFactor;
-
+			HUDPackage.CrosshairSpread = HipSpread;
 			HUD->SetHUDPackage(HUDPackage);
 		}
 	}
+}
+
+
+void UCombatComponent::CalculateHipSpread(float DeltaTime)
+{
+	//Calculate crosshair spread
+//[0, 600] -> [0, 1]
+	FVector2D WalkSpeedRange(0.f, Character->GetCharacterMovement()->MaxWalkSpeed);
+	FVector2D VelocityMultiplyerRange(0.f, 1.f);
+	FVector Velocity = Character->GetVelocity();
+	Velocity.Z = 0.f;
+
+	CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityMultiplyerRange, Velocity.Size());
+
+	if (Character->GetCharacterMovement()->IsFalling())
+	{
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 2.5f, DeltaTime, 2.5f);
+	}
+	else
+	{
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, 30.f);
+	}
+
+	if (bAiming)
+	{
+		CrosshairInAimFactor = FMath::FInterpTo(CrosshairInAimFactor, ADSWeight * 2.f, DeltaTime, 30.f);
+	}
+	else
+	{
+		CrosshairInAimFactor = FMath::FInterpTo(CrosshairInAimFactor, ADSWeight * 2.f, DeltaTime, 30.f);
+	}
+
+	CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, 30.f);
+
+	HipSpread = 
+		EquippedWeapon->WeaponData.HipScatter +
+		CrosshairVelocityFactor +
+		CrosshairInAirFactor -
+		CrosshairInAimFactor +
+		CrosshairShootingFactor;
 }
 
 void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -191,6 +201,7 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 {
 	if(Character == nullptr || EquippedWeapon == nullptr) return;
 	bAiming = bIsAiming;
+	HUDPackage.bAiming = bAiming;
 	ServerSetAiming(bIsAiming);
 	if(Character)
 	{
@@ -275,6 +286,7 @@ void UCombatComponent::Fire()
 	if(CanFire())
 	{
 		bCanFire = false;
+		HitTarget = !bAiming ? EquippedWeapon->TraceEndWithcSpread(HitTarget, HipSpread) : HitTarget;
 		ServerFire(HitTarget);
 		if(!Character->HasAuthority()) LocalFire(HitTarget);
 		if(EquippedWeapon)
@@ -375,24 +387,6 @@ void UCombatComponent::TraceUnderCrosshairs(FHitResult& TraceHitResult)
 		{
 			HUDPackage.CrosshairColor = FLinearColor::White;
 		}
-
-
-	/*	if(!TraceHitResult.bBlockingHit)
-		{
-			TraceHitResult.ImpactNormal = End;
-			HitTarget = End;
-		}
-		else
-		{
-			HitTarget = TraceHitResult.ImpactPoint;
-			DrawDebugSphere(
-				GetWorld(),
-				TraceHitResult.ImpactPoint,
-				12.f,
-				12,
-				FColor::Red
-			);
-		}*/
 	}
 }
 
@@ -419,7 +413,7 @@ void UCombatComponent::EquipWeapon(ABaseWeapon* WeaponToEquip)
 	
 	EquippedWeapon->SetOwner(Character);
 	EquippedWeapon->SetHUDAmmo();
-	OnChangeWeaponDelegate.ExecuteIfBound(EquippedWeapon);
+	OnChangeWeaponDelegate.Broadcast(EquippedWeapon);
 
 	if(CarriedAmmoMap.Contains(EquippedWeapon->GetWeaponAmmoType()))
 	{
@@ -534,7 +528,7 @@ void UCombatComponent::OnRep_EquippedWeapon()
 	if(EquippedWeapon && Character)
 	{
 		EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
-		OnChangeWeaponDelegate.ExecuteIfBound(EquippedWeapon);
+		OnChangeWeaponDelegate.Broadcast(EquippedWeapon);
 		
 		const USkeletalMeshSocket* RightHandSocket = Character->GetMesh()->GetSocketByName(FName("RightHandSocket"));
 		if (RightHandSocket)

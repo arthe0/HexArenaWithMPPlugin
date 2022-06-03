@@ -18,6 +18,7 @@ public:
 	UTexture2D* CrosshairsTop;
 	UTexture2D* CrosshairsBottom;
 	float CrosshairSpread;
+	bool bAiming = false;
 	FLinearColor CrosshairColor;
 };
 

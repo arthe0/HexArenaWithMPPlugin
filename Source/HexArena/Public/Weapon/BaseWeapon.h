@@ -7,11 +7,10 @@
 #include "Weapon/AmmoTypes.h"
 #include "Weapon/WeaponTypes.h"
 #include "Engine/DataTable.h"
+#include "Pickups/BasePickup.h"
 #include "BaseWeapon.generated.h"
 
 class AProjectile;
-class USphereComponent;
-class UWidgetComponent;
 class UAnimationAsset;
 class UTexture2D;
 class AHABaseCharacter;
@@ -145,10 +144,32 @@ struct FWeaponData : public FTableRowBase
 	* Aim properties
 	*/
 	UPROPERTY(EditAnywhere, Category = "Aim")
+	float HipScatter = 3.f;
+
+	UPROPERTY(EditAnywhere, Category = "Aim")
+	float HipScatterDistance = 50.f;
+
+	UPROPERTY(EditAnywhere, Category = "Aim")
 	float ZoomedFOV = 30.f;
 
 	UPROPERTY(EditAnywhere, Category = "Aim")
 	float ZoomInterpSpeed = 20.f;
+
+	/*
+	* Movement
+	*/
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float BaseWalkSpeed = 500;
+	
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float BaseCrouchSpeed = 250;
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float ADSMultiplyer = 0.3;
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float RunMultiplyer = 0.3;
 
 	/*
 	* IKTransformProperties
@@ -179,7 +200,7 @@ struct FWeaponData : public FTableRowBase
 
 
 UCLASS()
-class HEXARENA_API ABaseWeapon : public AActor
+class HEXARENA_API ABaseWeapon : public ABasePickup
 {
 	GENERATED_BODY()
 	
@@ -190,12 +211,11 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void OnRep_Owner() override;
-	void ShowPickupWidget(bool bShowWidget);
 	void SetHUDAmmo();
 	virtual void Fire(const FVector& HitTarget);
 	void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
-
+	FVector TraceEndWithcSpread(const FVector& HitTarget, float Spread);
 	/*
 	* WeaponData
 	*/
@@ -217,24 +237,6 @@ protected:
 	virtual void OnDropped();
 
 	UFUNCTION()
-	virtual void OnSphereOverlap(
-		UPrimitiveComponent* OverlappedComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex,
-		bool bFromSweep,
-		const FHitResult& SweepResult
-	);
-
-	UFUNCTION()
-	void OnSphereEndOverlap(
-		UPrimitiveComponent* OverlappedComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex
-	);
-
-	UFUNCTION()
 	void OnPingToHigh(bool bPingTooHigh);
 
 	/**
@@ -249,14 +251,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Weapon Mesh")
 	USkeletalMeshComponent* WeaponMeshComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
-	USphereComponent* AreaSphere;
-
 	UPROPERTY(ReplicatedUsing = OnRep_WeaponState, VisibleAnywhere, Category = "Weapon Properties")
 	EWeaponState WeaponState;
-
-	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
-	UWidgetComponent* PickupWidget;
 
 	UFUNCTION()
 	void OnRep_WeaponState();
@@ -284,10 +280,6 @@ private:
 
 	UPROPERTY()
 	AHAPlayerController* HAOwnerController;
-
-	/*
-	* Ammo
-	*/
 
 public:
 	void SetWeaponState(EWeaponState State);

@@ -9,6 +9,7 @@
 
 class UStaticMeshComponent;
 class UCurveFloat;
+class ULandscapeComponent;
 
 UENUM(BlueprintType)
 enum class EBlockState : uint8
@@ -65,6 +66,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	UStaticMeshComponent* HexMeshComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	UStaticMeshComponent* PlatformMeshComponent;
 
 	FTimeline RiseTimeline;
 	

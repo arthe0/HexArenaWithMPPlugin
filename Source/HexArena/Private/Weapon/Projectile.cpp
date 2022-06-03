@@ -25,6 +25,7 @@ AProjectile::AProjectile()
 	CollisionBox->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
 	CollisionBox->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Block);
 	CollisionBox->SetCollisionResponseToChannel(ECC_HitBox, ECollisionResponse::ECR_Block);
+	CollisionBox->IgnoreActorWhenMoving(GetOwner(), true);
 
 	ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectioleMovementComponent"));
 	ProjectileMovementComponent->bRotationFollowsVelocity = true;
@@ -58,6 +59,8 @@ void AProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	CollisionBox->IgnoreActorWhenMoving(GetOwner(), true);
+
 	if (Tracer)
 	{
 		TracerComponent = UGameplayStatics::SpawnEmitterAttached(
@@ -78,6 +81,7 @@ void AProjectile::BeginPlay()
 
 void AProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	UE_LOG(LogTemp, Warning, TEXT("Owner of %s is %s"), *this->GetName(), *GetOwner()->GetName());
 	Destroy();
 }
 

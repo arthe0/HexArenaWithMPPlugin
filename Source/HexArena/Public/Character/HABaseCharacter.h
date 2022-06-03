@@ -21,6 +21,7 @@ class UHealthComponent;
 class UCameraComponent;
 class UWidgetComponent;
 class ABaseWeapon;
+class ABasePickup;
 class UAnimMontage;
 class AHAPlayerController;
 class UTimelineComponent;
@@ -28,6 +29,8 @@ class AHaPlayerState;
 class UBoxComponent;
 class ULagCompensationComponent;
 class UHitBoxComponent;
+class UHAMovementComponent;
+class UInventory;
 
 UCLASS()
 class HEXARENA_API AHABaseCharacter : public ACharacter, public IInteractWithCrosshairsInterface
@@ -35,16 +38,13 @@ class HEXARENA_API AHABaseCharacter : public ACharacter, public IInteractWithCro
 	GENERATED_BODY()
 
 public:
-	AHABaseCharacter();
+	AHABaseCharacter(const FObjectInitializer& ObjInit);
 	
 	friend UHealthComponent;
 
 	virtual void Tick(float DeltaTime) override;
-	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
-
 	virtual void PostInitializeComponents() override;
 
 	void PlayFireMontage(bool bAiming);
@@ -60,6 +60,9 @@ public:
 
 	UPROPERTY()
 	TMap<FName, UHitBoxComponent*> HitBoxes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Mesh")
+	USkeletalMeshComponent* ClientMesh;
 
 protected:
 
@@ -79,6 +82,8 @@ protected:
 	void FireButtonPressed();
 	void FireButtonReleased();
 	void ReloadButtonPressed();
+	void SprintButtonPressed();
+	void SprintButtonReleased();
 	void AimOffset(float DeltaTime);
 
 	//	Poll for any relevant class and init HUD
@@ -140,17 +145,33 @@ protected:
 	UHitBoxComponent* FootRBox;
 
 private:
+	/*
+	*  Pickups 
+	*/
+
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	UCameraComponent* CameraComponent;
-
-	UPROPERTY(VisibleAnywhere, Category = "Mesh")
-	USkeletalMeshComponent* ClientMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UWidgetComponent* OverheadWidget;
 
-	UPROPERTY(ReplicatedUsing = OnRep_OverlappingWeapon)
-	ABaseWeapon* OverlappingWeapon;
+	UPROPERTY(ReplicatedUsing = OnRep_OverlappingPickup)
+	ABasePickup* OverlappingPickup;
+
+	UFUNCTION()
+	void OnRep_OverlappingPickup(ABasePickup* LastPickup);
+
+	UFUNCTION(Server, Reliable)
+	void ServerEquipButtonPressed();
+
+	UFUNCTION()
+	void EquipWeaponHandle(ABasePickup* Pickup);
+
+	UFUNCTION()
+	void EquipAmmoHandle(ABasePickup* Pickup);
+
+	UFUNCTION()
+	void EquipPowerUpHandle(ABasePickup* Pickup);
 
 	/*
 	 *	HA Components 
@@ -164,6 +185,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	ULagCompensationComponent* LagCompensation;
+
+	UPROPERTY(VisibleAnywhere)
+	UInventory* Inventory;
 
 	/*
 	* Montages
@@ -181,16 +205,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Montages")
 	UAnimMontage* DeathMontage;
 
-	//UPROPERTY(Replicated)
-	//float Direction;
-
 	void PlayHitReactMontage();
 
-	UFUNCTION()
-	void OnRep_OverlappingWeapon(ABaseWeapon* LastWeapon);	
-
-	UFUNCTION(Server, Reliable)
-	void ServerEquipButtonPressed();
 
 	float ADSWeight = 0.f;
 	float AO_Yaw;
@@ -240,7 +256,7 @@ private:
 
 	AHaPlayerState* HAPlayerState;
 public:
-	void SetOverlappingWeapon(ABaseWeapon* Weapon);
+	void SetOverlappingPickup(ABasePickup* Pickup);
 	bool IsWeaponEquipped();
 	bool IsAiming();
 

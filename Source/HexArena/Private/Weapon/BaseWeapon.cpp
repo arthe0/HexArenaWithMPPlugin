@@ -10,6 +10,8 @@
 #include "Weapon/BulletShell.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "PlayerController/HAPlayerController.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Camera/CameraComponent.h"
 
 ABaseWeapon::ABaseWeapon()
 {
@@ -23,34 +25,18 @@ ABaseWeapon::ABaseWeapon()
 	WeaponMeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 	WeaponMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	
-	AreaSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AreaSphere"));
-	AreaSphere->SetupAttachment(RootComponent);
-	AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	PickupWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("PickupWidget"));
-	PickupWidget->SetupAttachment(RootComponent);
+	Ammo = WeaponData.MagCapacity;
 }
 
 void ABaseWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
-	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &ABaseWeapon::OnSphereOverlap);
-	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &ABaseWeapon::OnSphereEndOverlap);
-
-	WeaponMeshComponent->SetSkeletalMesh(WeaponData.WeaponMesh);
-
 	FireDelay = WeaponData.FireRate / 6000.f;
 	WeaponMeshComponent->SetSkeletalMesh(WeaponData.WeaponMesh);
-	
-	if (PickupWidget)
-	{
-		PickupWidget->SetVisibility(false);
-	}
+
+	Ammo = WeaponData.MagCapacity;
 }
 
 
@@ -66,25 +52,6 @@ void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 
 	DOREPLIFETIME(ABaseWeapon, WeaponState);
 	DOREPLIFETIME_CONDITION(ABaseWeapon, bUseSSR, COND_OwnerOnly);
-}
-
-void ABaseWeapon::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	AHABaseCharacter* HACharacter = Cast<AHABaseCharacter>(OtherActor);
-	if(HACharacter)
-	{
-		HACharacter->SetOverlappingWeapon(this);
-	}
-}
-
-
-void ABaseWeapon::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	AHABaseCharacter* HACharacter = Cast<AHABaseCharacter>(OtherActor);
-	if (HACharacter)
-	{
-		HACharacter->SetOverlappingWeapon(nullptr);
-	}
 }
 
 void ABaseWeapon::OnPingToHigh(bool bPingTooHigh)
@@ -105,10 +72,7 @@ void ABaseWeapon::OnWeaponStateSet()
 	case EWeaponState::EWS_Dropped:
 		OnDropped();
 		break;
-	case EWeaponState::EWS_MAX:
-		break;
-	default:
-		break;
+
 	}
 }
 
@@ -139,6 +103,7 @@ void ABaseWeapon::OnDropped()
 	WeaponMeshComponent->SetSimulatePhysics(true);
 	WeaponMeshComponent->SetEnableGravity(true);
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	WeaponMeshComponent->AddImpulse(this->GetActorRotation().Vector() * 1000.f);
 
 
 	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
@@ -156,7 +121,6 @@ void ABaseWeapon::OnRep_WeaponState()
 {
 	OnWeaponStateSet();
 }
-
 
 void ABaseWeapon::SetWeaponState(EWeaponState State)
 {
@@ -253,15 +217,6 @@ void ABaseWeapon::OnRep_Owner()
 	}
 }
 
-void ABaseWeapon::ShowPickupWidget(bool bShowWidget)
-{
-	if (PickupWidget)
-	{
-		PickupWidget->SetVisibility(bShowWidget);
-	}
-}
-
-
 void ABaseWeapon::Fire(const FVector& HitTarget)
 {
 	if(WeaponData.FireAnimation)
@@ -287,6 +242,23 @@ void ABaseWeapon::Fire(const FVector& HitTarget)
 		}
 	}
 	SpendRound();
+}
+
+FVector ABaseWeapon::TraceEndWithcSpread(const FVector& HitTarget, float Spread)
+{
+	const USkeletalMeshSocket* MuzzleFlashSocket = GetWeaponMesh()->GetSocketByName("MuzzleFlash");
+	if (MuzzleFlashSocket == nullptr) return FVector();
+
+	const FTransform SocketTransform = MuzzleFlashSocket->GetSocketTransform(GetWeaponMesh());
+	const FVector TraceStart = SocketTransform.GetLocation();
+
+	const FVector ToTargetNormalized = (HitTarget - TraceStart).GetSafeNormal();
+	const FVector SphereCenter = TraceStart + ToTargetNormalized * WeaponData.HipScatterDistance;
+	const FVector RandVec = UKismetMathLibrary::RandomUnitVector() * FMath::FRandRange(0.f, Spread);
+	const FVector EndLoc = SphereCenter + RandVec;
+	const FVector ToEndLoc = EndLoc - TraceStart;
+
+	return FVector(TraceStart + ToEndLoc * TRACE_LENGTH / ToEndLoc.Size());
 }
 
 void ABaseWeapon::Dropped()
