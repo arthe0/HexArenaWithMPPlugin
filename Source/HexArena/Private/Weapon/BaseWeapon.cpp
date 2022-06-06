@@ -19,19 +19,34 @@ ABaseWeapon::ABaseWeapon()
 	bReplicates = true;
 
 	WeaponMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMeshComponent"));
-	WeaponMeshComponent->SetupAttachment(RootComponent);
-	SetRootComponent(WeaponMeshComponent);
+	WeaponMeshComponent->SetupAttachment(GetRootComponent());
 
 	WeaponMeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 	WeaponMeshComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	Ammo = WeaponData.MagCapacity;
+	WeaponMeshComponent->SetCustomDepthStencilValue(CUSTOM_DEPTH_PURPLE);
+	WeaponMeshComponent->MarkRenderStateDirty();
+	EnableCustomDepth(true);
+
+	PickupType = EPickupTypes::EPT_Weapon;
+
+	static ConstructorHelpers::FObjectFinder<UDataTable> LootDTObject(TEXT("DataTable'/Game/Blueprints/Weapon/WeaponDT.WeaponDT'"));
+	if (LootDTObject.Succeeded())
+	{
+		WeaponTable = LootDTObject.Object;
+	}
+	//Ammo = WeaponData.MagCapacity;
 }
 
 void ABaseWeapon::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (WeaponTable)
+	{
+		WeaponData = *WeaponTable->FindRow<FWeaponData>(WeaponName, "");
+	}
 
 	FireDelay = WeaponData.FireRate / 6000.f;
 	WeaponMeshComponent->SetSkeletalMesh(WeaponData.WeaponMesh);
@@ -51,7 +66,9 @@ void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ABaseWeapon, WeaponState);
+	//DOREPLIFETIME_CONDITION(ABaseWeapon, WeaponData, COND_SimulatedOnly);
 	DOREPLIFETIME_CONDITION(ABaseWeapon, bUseSSR, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(ABaseWeapon, Ammo, COND_OwnerOnly);
 }
 
 void ABaseWeapon::OnPingToHigh(bool bPingTooHigh)
@@ -59,6 +76,14 @@ void ABaseWeapon::OnPingToHigh(bool bPingTooHigh)
 	bUseSSR = !bPingTooHigh;
 }
 
+/*
+* Client state updates 
+*/
+void ABaseWeapon::SetWeaponState(EWeaponState State)
+{
+	WeaponState = State;
+	OnWeaponStateSet();
+}
 
 void ABaseWeapon::OnWeaponStateSet()
 {
@@ -72,6 +97,9 @@ void ABaseWeapon::OnWeaponStateSet()
 	case EWeaponState::EWS_Dropped:
 		OnDropped();
 		break;
+	case EWeaponState::EWS_Inventory:
+		OnInventory();
+		break;
 
 	}
 }
@@ -79,9 +107,10 @@ void ABaseWeapon::OnWeaponStateSet()
 void ABaseWeapon::OnEquipped()
 {
 	ShowPickupWidget(false);
-	WeaponMeshComponent->SetSimulatePhysics(false);
-	WeaponMeshComponent->SetEnableGravity(false);
-	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PhysicsMeshComponent->SetSimulatePhysics(false);
+	PhysicsMeshComponent->SetEnableGravity(false);
+	PhysicsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
 	if(HAOwnerCharacter && bUseSSR)
@@ -92,19 +121,43 @@ void ABaseWeapon::OnEquipped()
 			HAOwnerController->HighPingDelegate.AddDynamic(this, &ABaseWeapon::OnPingToHigh);
 		}
 	}
+	EnableCustomDepth(false);
 }
 
 void ABaseWeapon::OnDropped()
 {
-	if(HasAuthority())
+
+	PhysicsMeshComponent->SetSimulatePhysics(true);
+	PhysicsMeshComponent->SetEnableGravity(true);
+	PhysicsMeshComponent->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+
+	if (HasAuthority())
 	{
 		AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		PhysicsMeshComponent->AddImpulse(WeaponMeshComponent->GetRelativeRotation().Vector() * 100.f);
 	}
-	WeaponMeshComponent->SetSimulatePhysics(true);
-	WeaponMeshComponent->SetEnableGravity(true);
-	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	WeaponMeshComponent->AddImpulse(this->GetActorRotation().Vector() * 1000.f);
+	
+	WeaponMeshComponent->SetRelativeRotation(FQuat(0,0,0,0));
+	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
+	if (HAOwnerCharacter && bUseSSR)
+	{
+		HAOwnerController = HAOwnerController == nullptr ? Cast<AHAPlayerController>(HAOwnerCharacter->Controller) : HAOwnerController;
+		if (HAOwnerController && HasAuthority() && HAOwnerController->HighPingDelegate.IsBound())
+		{
+			HAOwnerController->HighPingDelegate.RemoveDynamic(this, &ABaseWeapon::OnPingToHigh);
+		}
+	}
+	WeaponMeshComponent->MarkRenderStateDirty();
+	EnableCustomDepth(true);
+}
 
+void ABaseWeapon::OnInventory()
+{
+	ShowPickupWidget(false);
+	AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PhysicsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PhysicsMeshComponent->SetSimulatePhysics(false);
+	PhysicsMeshComponent->SetEnableGravity(false);
 
 	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
 	if (HAOwnerCharacter && bUseSSR)
@@ -115,6 +168,7 @@ void ABaseWeapon::OnDropped()
 			HAOwnerController->HighPingDelegate.RemoveDynamic(this, &ABaseWeapon::OnPingToHigh);
 		}
 	}
+	EnableCustomDepth(false);
 }
 
 void ABaseWeapon::OnRep_WeaponState()
@@ -122,35 +176,22 @@ void ABaseWeapon::OnRep_WeaponState()
 	OnWeaponStateSet();
 }
 
-void ABaseWeapon::SetWeaponState(EWeaponState State)
+
+void ABaseWeapon::Dropped()
 {
-	WeaponState = State;
-	switch (WeaponState)
-	{
-	case EWeaponState::EWS_Initial:
-		break;
-	case EWeaponState::EWS_Equipped:
-		ShowPickupWidget(false);
-		AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		WeaponMeshComponent->SetSimulatePhysics(false);
-		WeaponMeshComponent->SetEnableGravity(false);
-		WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		break;
-	case EWeaponState::EWS_Dropped:
-		if(HasAuthority())
-		{
-			AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		}
-		WeaponMeshComponent->SetSimulatePhysics(true);
-		WeaponMeshComponent->SetEnableGravity(true);
-		WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			
-		break;
-	case EWeaponState::EWS_MAX:
-		break;
-	default:
-		break;
-	}
+	SetWeaponState(EWeaponState::EWS_Dropped);
+	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
+	PhysicsMeshComponent->DetachFromComponent(DetachRules);
+	SetOwner(nullptr);
+	HAOwnerController = nullptr;
+	HAOwnerCharacter = nullptr;
+}
+
+void ABaseWeapon::ToInventory()
+{
+	SetWeaponState(EWeaponState::EWS_Inventory);
+	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
+	PhysicsMeshComponent->DetachFromComponent(DetachRules);
 }
 
 void ABaseWeapon::SetHUDAmmo()
@@ -261,16 +302,21 @@ FVector ABaseWeapon::TraceEndWithcSpread(const FVector& HitTarget, float Spread)
 	return FVector(TraceStart + ToEndLoc * TRACE_LENGTH / ToEndLoc.Size());
 }
 
-void ABaseWeapon::Dropped()
+/**
+ * Cosmetics
+ */
+
+void ABaseWeapon::EnableCustomDepth(bool bEnable)
 {
-	SetWeaponState(EWeaponState::EWS_Dropped);
-	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
-	WeaponMeshComponent->DetachFromComponent(DetachRules);
-	SetOwner(nullptr);
-	HAOwnerController = nullptr;
-	HAOwnerCharacter = nullptr;
+	if(WeaponMeshComponent)
+	{
+		WeaponMeshComponent->SetRenderCustomDepth(bEnable);
+	}
 }
 
+/**
+ * Is checks, Setters, Getters
+ */
 bool ABaseWeapon::IsEmpty()
 {
 	return Ammo <= 0;

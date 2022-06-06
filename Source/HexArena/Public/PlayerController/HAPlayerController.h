@@ -58,7 +58,7 @@ protected:
 	void ServerCheckMatchState();
 
 	UFUNCTION(Client, Reliable)
-	void ClientJoinMidgame(FName StateOfMatch, float WarmupT, float RoundT, float StartingT);
+	void ClientJoinMidgame(FName StateOfMatch, float WarmupT, float RoundT, float CooldownT, float StartingT);
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestServerTime(float TimeOfClientRequest);
@@ -82,6 +82,7 @@ private:
 	float LevelStartingTime = 0.f;
 	float RoundTime = 0.f;
 	float WarmupTime = 0.f;
+	float CooldownTime = 0.f;
 	uint32 TimerInt = 0;
 
 	UPROPERTY(ReplicatedUsing = OnRep_MatchState)

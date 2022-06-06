@@ -45,6 +45,7 @@ enum class EWeaponState : uint8
 {
 	EWS_Initial UMETA(DisplayName = "Initial State"),
 	EWS_Equipped UMETA(DisplayName = "Equipped"),
+	EWS_Inventory UMETA(DisplayName = "In inventory"),
 	EWS_Dropped UMETA(DisplayName = "Dropped"),
 
 	EWS_MAX UMETA(DisplayName = "DefaultMAX"),
@@ -214,13 +215,14 @@ public:
 	void SetHUDAmmo();
 	virtual void Fire(const FVector& HitTarget);
 	void Dropped();
+	void ToInventory();
 	void AddAmmo(int32 AmmoToAdd);
 	FVector TraceEndWithcSpread(const FVector& HitTarget, float Spread);
 	/*
 	* WeaponData
 	*/
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "WeaponData")
+	UPROPERTY(Replicated, BlueprintReadWrite, EditAnywhere, Category = "WeaponData")
 	FWeaponData WeaponData;
 
 	 /*
@@ -235,6 +237,9 @@ protected:
 	virtual void OnWeaponStateSet();
 	virtual void OnEquipped();
 	virtual void OnDropped();
+	virtual void OnInventory();
+
+	virtual void EnableCustomDepth(bool bEnable) override;
 
 	UFUNCTION()
 	void OnPingToHigh(bool bPingTooHigh);
@@ -257,7 +262,7 @@ private:
 	UFUNCTION()
 	void OnRep_WeaponState();
 
-	UPROPERTY(EditAnywhere/*, ReplicatedUsing = OnRep_Ammo*/)
+	UPROPERTY(EditAnywhere, Replicated/*Using = OnRep_Ammo*/)
 	int32 Ammo;
 
 	UPROPERTY(EditAnywhere, Category = "Table Data")
@@ -281,8 +286,11 @@ private:
 	UPROPERTY()
 	AHAPlayerController* HAOwnerController;
 
+	UDataTable* WeaponTable;
+
 public:
 	void SetWeaponState(EWeaponState State);
+	FORCEINLINE EWeaponState GetWeaonState () { return WeaponState; }
 	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
 	FORCEINLINE USkeletalMeshComponent* GetWeaponMesh() { return WeaponMeshComponent; }
 	FORCEINLINE float GetZoomedFOV() const { return WeaponData.ZoomedFOV; }
@@ -292,7 +300,9 @@ public:
 	bool IsEmpty();
 	FORCEINLINE EAmmoType GetWeaponAmmoType() const { return WeaponData.AmmoType; }
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponData.WeaponType; }
+	FORCEINLINE bool IsFull() { return Ammo == WeaponData.MagCapacity; }
 	virtual FORCEINLINE FTransform GetsightsWorldTransform_Implementation() { return WeaponMeshComponent->GetSocketTransform(FName("Sights")); }
+	FORCEINLINE void SetWeaponName (FName NewName) { WeaponName = NewName; }
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "IK")
 	FTransform GetsightsWorldTransform() const;

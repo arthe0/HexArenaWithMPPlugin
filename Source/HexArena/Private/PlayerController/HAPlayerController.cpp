@@ -270,11 +270,15 @@ void AHAPlayerController::SetHUDTime()
 	float TimeLeft = 0.f;
 	if (MatchState == MatchState::WaitingToStart) TimeLeft = WarmupTime - GetServerTime() + LevelStartingTime;
 	else if (MatchState == MatchState::InProgress) TimeLeft = WarmupTime + RoundTime - GetServerTime() + LevelStartingTime;
+	else if (MatchState == MatchState::Cooldown) TimeLeft = CooldownTime + WarmupTime + RoundTime - GetServerTime() + LevelStartingTime;
 
 	uint32 SecondsLeft = FMath::CeilToInt(TimeLeft);
+
+
+
 	if(TimerInt != SecondsLeft)
 	{
-		if(MatchState == MatchState::WaitingToStart)
+		if(MatchState == MatchState::WaitingToStart || MatchState == MatchState::Cooldown)
 		{
 			SetHUDAnnouncmentTimer(TimeLeft);
 		}
@@ -328,8 +332,9 @@ void AHAPlayerController::ServerCheckMatchState_Implementation()
 		LevelStartingTime = GameMode->LevelStartingTime;
 		WarmupTime = GameMode->WarmupTime;
 		RoundTime = GameMode->RoundTime;
+		CooldownTime = GameMode->CooldownTime;
 		MatchState = GameMode->GetMatchState();
-		ClientJoinMidgame(MatchState, WarmupTime, RoundTime, LevelStartingTime);
+		ClientJoinMidgame(MatchState, WarmupTime, RoundTime, CooldownTime, LevelStartingTime);
 
 		if(HAHUD && MatchState == MatchState::WaitingToStart)
 		{
@@ -338,16 +343,18 @@ void AHAPlayerController::ServerCheckMatchState_Implementation()
 	}
 }
 
-void AHAPlayerController::ClientJoinMidgame_Implementation(FName StateOfMatch, float WarmupT, float RoundT, float StartingT)
+void AHAPlayerController::ClientJoinMidgame_Implementation(FName StateOfMatch, float WarmupT, float RoundT, float CooldownT, float StartingT)
 {
 	LevelStartingTime = StartingT;
 	WarmupTime = WarmupT;
 	RoundTime = RoundT;
+	CooldownTime = CooldownT;
 	MatchState = StateOfMatch;
 	OnMatchStateSet(MatchState);
 
 	if (HAHUD && MatchState == MatchState::WaitingToStart)
 	{
+		if(HasAuthority()) return;
 		HAHUD->AddAnnouncment();
 	}
 }
@@ -437,10 +444,24 @@ void AHAPlayerController::HandleCooldown()
 	if (HAHUD)
 	{
 		HAHUD->CharacterOverlay->RemoveFromParent();
-		if (HAHUD->Announcment)
+
+		bool bHUDValid =
+			HAHUD->Announcment &&
+			HAHUD->Announcment->AnnouncmentText;
+		
+		if (bHUDValid)
 		{
 			HAHUD->Announcment->SetVisibility(ESlateVisibility::Visible);
+			FString AnnouncmentText("New Match Starting In: ");
+			HAHUD->Announcment->AnnouncmentText->SetText(FText::FromString(AnnouncmentText));
 		}
+	}
+
+	AHABaseCharacter* HACharacter = Cast<AHABaseCharacter>(GetPawn());
+	if(HACharacter)
+	{
+		//Mb disable shooting
+		HACharacter->bDisableCombat = true;
 	}
 }
 

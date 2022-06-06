@@ -21,22 +21,32 @@ public:
 	UHAMovementComponent();
 
 	UPROPERTY(EditAnywhere)
-	float RunMultiplyer = 2.f;
+	float BaseRunMultiplyer = 1.8f;
 
 	UPROPERTY(EditAnywhere)
-	float AimSpeedMultiplyer = .3f;
+	float BaseWalkSpeed = 600.f;
 
 	UPROPERTY(EditAnywhere)
-	float BaseWalkSpeed;
+	float BaseCrouchWalkSpeed = 300.f;
 
 	UPROPERTY(EditAnywhere)
-	float BaseCrouchWalkSpeed;
+	float BaseAimSpeedMultiplyer = .3f;
+
+	float CurrentWalkSpeed = BaseWalkSpeed;
+	float CurrentCrouchWalkSpeed = BaseCrouchWalkSpeed;
+	float CurrentAimSpeedMultiplyer = BaseAimSpeedMultiplyer;
+	float CurrentRunMultiplyer = BaseRunMultiplyer;
+
+	
 
 	UFUNCTION()
 	void Run();
 
 	UFUNCTION()
 	void EndRun();
+
+	UFUNCTION()
+	void SetSpeed(bool bAiming);
 
 protected:
 	virtual void BeginPlay() override;

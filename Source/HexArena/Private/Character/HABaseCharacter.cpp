@@ -24,6 +24,10 @@
 #include "HAComponents/LagCompensationComponent.h"
 #include "HAComponents/HAMovementComponent.h"
 #include "HAComponents/Inventory.h"
+#include "Pickups/BasePickup.h"
+#include "Pickups/AmmoPickup.h"
+#include "Pickups/Interactable.h"
+#include "Pickups/LootBox.h"
 
 AHABaseCharacter::AHABaseCharacter(const FObjectInitializer& ObjInit)
 	:Super(ObjInit.SetDefaultSubobjectClass<UHAMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -36,6 +40,7 @@ AHABaseCharacter::AHABaseCharacter(const FObjectInitializer& ObjInit)
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
 	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
+	GetMesh()->SetCollisionResponseToChannel(ECC_PickupPhysics, ECollisionResponse::ECR_Overlap);
 
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->bUsePawnControlRotation = true;
@@ -175,6 +180,7 @@ void AHABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(AHABaseCharacter, OverlappingPickup, COND_OwnerOnly);
+	DOREPLIFETIME(AHABaseCharacter, bDisableCombat);
 }
 
 void AHABaseCharacter::BeginPlay()
@@ -184,6 +190,34 @@ void AHABaseCharacter::BeginPlay()
 	HAPlayerController = GetPlayerController();
 }
 
+void AHABaseCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (Combat)
+	{
+		Combat->Character = this;
+	}
+
+	if (Health)
+	{
+		Health->Character = this;
+	}
+
+	if (LagCompensation)
+	{
+		LagCompensation->Character = this;
+		if (Controller)
+		{
+			LagCompensation->Controller = Cast<AHAPlayerController>(Controller);
+		}
+	}
+
+	if (Inventory)
+	{
+		Inventory->Character = this;
+	}
+}
 
 void AHABaseCharacter::Tick(float DeltaTime)
 {
@@ -213,34 +247,170 @@ void AHABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AHABaseCharacter::FireButtonPressed);
 	PlayerInputComponent->BindAction("Fire", IE_Released, this, &AHABaseCharacter::FireButtonReleased);
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AHABaseCharacter::ReloadButtonPressed);
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AHABaseCharacter::SprintButtonPressed);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AHABaseCharacter::SprintButtonReleased);
+	PlayerInputComponent->BindAction("SwapWeapon", IE_Pressed, this, &AHABaseCharacter::SwapWeaponButtonPressed);
+	PlayerInputComponent->BindAction("LowerWeapon", IE_Pressed, this, &AHABaseCharacter::LowerWeaponButtonPesssed);
+	PlayerInputComponent->BindAction("DropWeapon", IE_Pressed, this, &AHABaseCharacter::DropWeaponButtonPressed);
 }
 
-void AHABaseCharacter::PostInitializeComponents()
+/*
+* Input Functions
+*/
+void AHABaseCharacter::MoveForward(float Amount)
 {
-	Super::PostInitializeComponents();
+	bIsMovingForward = Amount > 0.0f;
+	if (Amount == 0.0f) return;
+	AddMovementInput(GetActorForwardVector(), Amount);
+}
 
-	if(Combat)
-	{
-		Combat->Character = this;
+void AHABaseCharacter::MoveRight(float Amount)
+{
+	if (Amount == 0.0f) return;
+	AddMovementInput(GetActorRightVector(), Amount);
+}
+
+void AHABaseCharacter::LookUp(float Amount)
+{
+	AddControllerPitchInput(Amount);
+}
+
+void AHABaseCharacter::TurnAround(float Amount)
+{
+	AddControllerYawInput(Amount);
+}
+
+void AHABaseCharacter::CrouchButtonPressed()
+{
+	Crouch();
+	UHAMovementComponent* Movement = Cast<UHAMovementComponent>(GetMovementComponent());
+	if(Movement)
+	{ 
+		Movement->SetSpeed(IsAiming());
 	}
+}
 
-	if (Health)
+void AHABaseCharacter::CrouchButtonReleased()
+{
+	UnCrouch();
+	UHAMovementComponent* Movement = Cast<UHAMovementComponent>(GetMovementComponent());
+	if (Movement)
 	{
-		Health->Character = this;
+		Movement->SetSpeed(IsAiming());
 	}
+}
 
-	if(LagCompensation)
+void AHABaseCharacter::AimButtonPressed()
+{
+	if(bDisableCombat) return;
+	if (Combat)
 	{
-		LagCompensation->Character = this;
-		if(Controller)
+		Combat->SetAiming(true);
+	}
+}
+
+void AHABaseCharacter::AimButtonReleased()
+{
+	if (bDisableCombat) return;
+	if (Combat)
+	{
+		Combat->SetAiming(false);
+	}
+}
+
+void AHABaseCharacter::FireButtonPressed()
+{
+	if (bDisableCombat) return;
+	if (Combat)
+	{
+		Combat->FireButtonPressed(true);
+	}
+}
+
+void AHABaseCharacter::FireButtonReleased()
+{
+	if (bDisableCombat) return;
+	if (Combat)
+	{
+		Combat->FireButtonPressed(false);
+	}
+}
+
+void AHABaseCharacter::ReloadButtonPressed()
+{
+	if (bDisableCombat) return;
+	if (Combat)
+	{
+		Combat->Reload();
+	}
+}
+
+void AHABaseCharacter::SprintButtonPressed()
+{
+	//GetMovementComponent()->Run();
+}
+
+void AHABaseCharacter::SprintButtonReleased()
+{
+	//GetMovementComponent()->EndRun();
+}
+
+void AHABaseCharacter::SwapWeaponButtonPressed()
+{
+	if (bDisableCombat) return;
+	if(Inventory)
+	{
+		if(HasAuthority())
 		{
-			LagCompensation->Controller = Cast<AHAPlayerController>(Controller);
+			Inventory->SwapWeapon();
+		}
+		else
+		{
+			ServerSwapButtonPressed();
+		}	
+	}
+}
+
+void AHABaseCharacter::ServerSwapButtonPressed_Implementation()
+{
+	if (bDisableCombat) return;
+	if (Inventory)
+	{		
+		Inventory->SwapWeapon();	
+	}
+}
+
+void AHABaseCharacter::LowerWeaponButtonPesssed()
+{
+	if (bDisableCombat) return;
+	if(Inventory)
+	{
+		if (HasAuthority())
+		{
+			Inventory->LowerWeapon();	
+		}
+		else
+		{
+			ServerLowerButtonPressed();
 		}
 	}
+}
 
+void AHABaseCharacter::ServerLowerButtonPressed_Implementation()
+{
+	if (bDisableCombat) return;
 	if(Inventory)
-	{ 
-		Inventory->Character = this;
+	{
+		Inventory->LowerWeapon();
+	}
+}
+
+void AHABaseCharacter::DropWeaponButtonPressed()
+{
+	if (bDisableCombat) return;
+	if (Inventory)
+	{
+		Inventory->DropPrimaryWeapon();
 	}
 }
 
@@ -308,35 +478,13 @@ void AHABaseCharacter::PlayHitReactMontage()
 	}
 }
 
-void AHABaseCharacter::MoveForward(float Amount)
-{
-	bIsMovingForward = Amount > 0.0f;
-	if (Amount == 0.0f) return;
-	AddMovementInput(GetActorForwardVector(), Amount);
-}
-
-void AHABaseCharacter::MoveRight(float Amount)
-{
-	if (Amount == 0.0f) return;
-	AddMovementInput(GetActorRightVector(), Amount);
-}
-
-void AHABaseCharacter::LookUp(float Amount)
-{
-	AddControllerPitchInput(Amount);
-}
-
-void AHABaseCharacter::TurnAround(float Amount)
-{
-	AddControllerYawInput(Amount);
-}
-
 /*
 * Pickups
 */
 
 void AHABaseCharacter::EquipButtonPressed()
 {
+	if (bDisableCombat) return;
 	if (HasAuthority())
 	{	
 		if (!OverlappingPickup) return;
@@ -352,7 +500,10 @@ void AHABaseCharacter::EquipButtonPressed()
 			break;
 
 		case EPickupTypes::EPT_PowerUp:
-			EquipAmmoHandle(OverlappingPickup);
+			//EquipAmmoHandle(OverlappingPickup);
+			break;
+		case EPickupTypes::EPT_LootBox:
+			InteractWitchLootBoxHandle(OverlappingPickup);
 			break;
 		}
 	}
@@ -364,6 +515,7 @@ void AHABaseCharacter::EquipButtonPressed()
 
 void AHABaseCharacter::ServerEquipButtonPressed_Implementation()
 {
+	if (bDisableCombat) return;
 	if (!OverlappingPickup) return;
 
 	switch (OverlappingPickup->PickupType)
@@ -377,90 +529,48 @@ void AHABaseCharacter::ServerEquipButtonPressed_Implementation()
 		break;
 
 	case EPickupTypes::EPT_PowerUp:
-		EquipAmmoHandle(OverlappingPickup);
+		//EquipAmmoHandle(OverlappingPickup);
+		break;
+	case EPickupTypes::EPT_LootBox:
+		InteractWitchLootBoxHandle(OverlappingPickup);
 		break;
 	}
 }
 
-void AHABaseCharacter::EquipWeaponHandle(ABasePickup* Pickup)
+void AHABaseCharacter::EquipWeaponHandle(AInteractable* Pickup)
 {
-	if (Combat)
+	if (Inventory)
 	{
-		Combat->EquipWeapon(Cast<ABaseWeapon>(OverlappingPickup));
+		Inventory->PickupWeapon(Cast<ABaseWeapon>(OverlappingPickup));
 	}
 }
 
-void AHABaseCharacter::EquipAmmoHandle(ABasePickup* Pickup)
+void AHABaseCharacter::EquipAmmoHandle(AInteractable* Pickup)
 {
 	if(Inventory)
 	{
-		
+		AAmmoPickup* OverlappingAmmo = Cast<AAmmoPickup>(OverlappingPickup);
+		if(OverlappingAmmo)
+		{
+			Inventory->UpdateAmmoValue(OverlappingAmmo->AmmoPickupData.AmmoType, OverlappingAmmo->GetAmmoAmount());
+		}
+		OverlappingPickup->Destroy(true);
 	}
 }
 
-void AHABaseCharacter::EquipPowerUpHandle(ABasePickup* Pickup)
+void AHABaseCharacter::EquipPowerUpHandle(AInteractable* Pickup)
 {
 
 }
 
-void AHABaseCharacter::CrouchButtonPressed()
+void AHABaseCharacter::InteractWitchLootBoxHandle(AInteractable* InteractObject)
 {
-	Crouch();
-}
-
-void AHABaseCharacter::CrouchButtonReleased()
-{
-	UnCrouch();
-}
-
-void AHABaseCharacter::AimButtonPressed()
-{
-	if(Combat)
+	ALootBox* OverlappingLootBox = Cast<ALootBox>(InteractObject);
+	if(OverlappingLootBox)
 	{
-		Combat->SetAiming(true);
+		OverlappingLootBox->OpenBox();
+		UE_LOG(LogTemp, Warning, TEXT("Trying to open box"));
 	}
-}
-
-void AHABaseCharacter::AimButtonReleased()
-{
-	if (Combat)
-	{
-		Combat->SetAiming(false);
-	}
-}
-
-void AHABaseCharacter::FireButtonPressed()
-{
-	if (Combat)
-	{
-		Combat->FireButtonPressed(true);
-	}
-}
-
-void AHABaseCharacter::FireButtonReleased()
-{
-	if (Combat)
-	{
-		Combat->FireButtonPressed(false);
-	}
-}
-
-void AHABaseCharacter::ReloadButtonPressed()
-{
-	if(Combat)
-	{
-		Combat->Reload();
-	}
-}
-
-void AHABaseCharacter::SprintButtonPressed()
-{
-	//GetMovementComponent()->Run();
-}
-
-void AHABaseCharacter::SprintButtonReleased()
-{
-	//GetMovementComponent()->EndRun();
 }
 
 void AHABaseCharacter::AimOffset(float DeltaTime)
@@ -495,7 +605,6 @@ void AHABaseCharacter::AimOffset(float DeltaTime)
 	}
 }
 
-
 void AHABaseCharacter::PollInit()
 {
 	if(HAPlayerState == nullptr)
@@ -528,10 +637,11 @@ void AHABaseCharacter::TurnInPlace(float DeltaTime)
 
 void AHABaseCharacter::Death()
 {
-	if(Combat && Combat->EquippedWeapon)
+	if(Inventory)
 	{
-		Combat->EquippedWeapon->Dropped();
+		Inventory->OnDeath();
 	}
+
 	MulticastDeath();
 	GetWorldTimerManager().SetTimer(
 		DeathTimer, 
@@ -592,7 +702,6 @@ void AHABaseCharacter::MulticastDeath_Implementation()
 	GetMesh()->SetEnableGravity(true);
 	GetMesh()->WakeAllRigidBodies();
 	GetMesh()->bBlendPhysics = true;
-
 }
 
 
@@ -657,7 +766,7 @@ FVector AHABaseCharacter::GetHitTarget() const
 	return Combat->HitTarget;
 }
 
-void AHABaseCharacter::SetOverlappingPickup(ABasePickup* Pickup)
+void AHABaseCharacter::SetOverlappingPickup(AInteractable* Pickup)
 {
 	if (OverlappingPickup)
 	{
@@ -673,11 +782,18 @@ void AHABaseCharacter::SetOverlappingPickup(ABasePickup* Pickup)
 	}
 }
 
-void AHABaseCharacter::OnRep_OverlappingPickup(ABasePickup* LastPickup)
+void AHABaseCharacter::OnRep_OverlappingPickup(AInteractable* LastPickup)
 {
 	if(OverlappingPickup)
 	{
-		OverlappingPickup->ShowPickupWidget(true);
+		if(OverlappingPickup->bAutoPickup)
+		{
+			EquipButtonPressed();
+		}
+		else
+		{
+			OverlappingPickup->ShowPickupWidget(true);
+		}
 	}
 	if(LastPickup)
 	{

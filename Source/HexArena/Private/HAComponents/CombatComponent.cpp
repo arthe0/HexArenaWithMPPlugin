@@ -13,7 +13,9 @@
 #include "DrawDebugHelpers.h"
 #include "PlayerController/HAPlayerController.h"
 #include "Camera/CameraComponent.h"
+#include "HAComponents/Inventory.h"
 #include "TimerManager.h"
+#include "HAComponents/HAMovementComponent.h"
 
 
 UCombatComponent::UCombatComponent()
@@ -32,7 +34,6 @@ UCombatComponent::UCombatComponent()
 void UCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	//Setuping ADS Timeline
 	
 	if (AimingCurve)
 	{
@@ -42,23 +43,14 @@ void UCombatComponent::BeginPlay()
 		AimingTimeline.AddInterpFloat(AimingCurve, TimelimeFloat);
 	}
 
-	//Make a character movement component?
 	if(Character)
 	{
-		Character->GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed;
-		Character->GetCharacterMovement()->MaxWalkSpeedCrouched = BaseWalkCrouchSpeed;
-
 		if(Character->GetCameraComponent())
 		{
 			DefaultFOV = Character->GetCameraComponent()->FieldOfView;
 			CurrentFOV = DefaultFOV;
 		}
-		if(Character->HasAuthority())
-		{
-			InitializeCarriedAmmo();
-		}
 	}
-
 }
 
 
@@ -118,7 +110,6 @@ void UCombatComponent::SetHUDCrosshairs()
 	}
 }
 
-
 void UCombatComponent::CalculateHipSpread(float DeltaTime)
 {
 	//Calculate crosshair spread
@@ -165,7 +156,7 @@ void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(UCombatComponent, bAiming);
 	//DOREPLIFETIME(UCombatComponent, ADSWeight);
 	DOREPLIFETIME(UCombatComponent, CombatState);
-	DOREPLIFETIME_CONDITION(UCombatComponent, CarriedAmmo, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UCombatComponent, CarriedAmmo, COND_OwnerOnly); // To inventory
 }
 
 /*
@@ -186,7 +177,7 @@ void UCombatComponent::InterpFOV(float DeltaTime)
 	}
 	else
 	{
-		CurrentFOV = FMath::FInterpTo(CurrentFOV, DefaultFOV, DeltaTime, ZoomInterpSpeed);
+		CurrentFOV = FMath::FInterpTo(CurrentFOV, DefaultFOV, DeltaTime, EquippedWeapon->GetZoomInterpSpeed());
 	}
 
 	if (Character && Character->GetCameraComponent())
@@ -205,11 +196,12 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 	ServerSetAiming(bIsAiming);
 	if(Character)
 	{
-		UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-		MovementComponent->MaxWalkSpeed = bIsAiming ? BaseWalkSpeed*AimMultiplyer : BaseWalkSpeed;
+		UHAMovementComponent* MovementComponent = Cast<UHAMovementComponent>(Character->GetCharacterMovement());
+		if(MovementComponent)
+		{
+			MovementComponent->SetSpeed(bAiming);
+		}
 
-		MovementComponent->MaxWalkSpeedCrouched = MovementComponent->IsCrouching() ?  BaseWalkCrouchSpeed*AimMultiplyer : BaseWalkCrouchSpeed;	
-	
 		if(Character->IsLocallyControlled())
 		{
 			bLocalAiming = bIsAiming;
@@ -231,11 +223,12 @@ void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 	bAiming = bIsAiming;
 	if (Character)
 	{
-		UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-		MovementComponent->MaxWalkSpeed = bIsAiming ? BaseWalkSpeed * AimMultiplyer : BaseWalkSpeed;
+		UHAMovementComponent* MovementComponent = Cast<UHAMovementComponent>(Character->GetCharacterMovement());
+		if (MovementComponent)
+		{
+			MovementComponent->SetSpeed(bAiming);
+		}
 
-		MovementComponent->MaxWalkSpeedCrouched = MovementComponent->IsCrouching() ? BaseWalkCrouchSpeed * AimMultiplyer : BaseWalkCrouchSpeed;
-		
 		if (bAiming)
 		{
 			AimingTimeline.Play();
@@ -246,7 +239,6 @@ void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 		}	
 	}
 }
-
 
 void UCombatComponent::OnRep_Aiming()
 {
@@ -394,73 +386,38 @@ void UCombatComponent::TraceUnderCrosshairs(FHitResult& TraceHitResult)
 * Equipping
 */
 
-void UCombatComponent::EquipWeapon(ABaseWeapon* WeaponToEquip)
-{
-	if(Character == nullptr || WeaponToEquip == nullptr) return;
-	if(EquippedWeapon)
-	{
-		EquippedWeapon->Dropped();
-	}
-	EquippedWeapon = WeaponToEquip;
-	EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
-	
-	const USkeletalMeshSocket* RightHandSocket = Character->GetMesh()->GetSocketByName(FName("RightHandSocket"));
-	
-	if (RightHandSocket)
-	{
-		RightHandSocket->AttachActor(EquippedWeapon, Character->GetMesh());
-	}
-	
-	EquippedWeapon->SetOwner(Character);
-	EquippedWeapon->SetHUDAmmo();
-	OnChangeWeaponDelegate.Broadcast(EquippedWeapon);
-
-	if(CarriedAmmoMap.Contains(EquippedWeapon->GetWeaponAmmoType()))
-	{
-		CarriedAmmo = CarriedAmmoMap[EquippedWeapon->GetWeaponAmmoType()];
-	}
-
-	Controller = Controller == nullptr ? Cast <AHAPlayerController>(Character->Controller) : Controller;
-	if(Controller)
-	{
-		Controller->SetHUDAmmoOfType(CarriedAmmo);
-		Controller->SetHUDWeaponAmmo(EquippedWeapon->GetAmmo());
-	}
-
-}
-
-void UCombatComponent::Reload()
+void UCombatComponent::SetWeapon(ABaseWeapon* WeaponToEquip)
 {
 	if(Character == nullptr) return;
-	if(CarriedAmmo > 0 && CombatState != ECombatState::ECS_Reloading && CombatState == ECombatState::ECS_Unoccupide && !bLocalyReloading)
+	EquippedWeapon = WeaponToEquip;
+	OnChangeWeaponDelegate.Broadcast(EquippedWeapon);
+}
+
+void UCombatComponent::OnRep_EquippedWeapon()
+{
+	if (EquippedWeapon && Character)
 	{
-		ServerReload();
-		HandleReload();
-		bLocalyReloading = true;
+		EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
+		OnChangeWeaponDelegate.Broadcast(EquippedWeapon);
+
+		//Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+		//Character->bUseControllerRotationYaw = true;
 	}
 }
 
-
-void UCombatComponent::ServerReload_Implementation()
-{
-	if(Character == nullptr || EquippedWeapon == nullptr) return;
-
-	CombatState = ECombatState::ECS_Reloading;
-	if(!Character->IsLocallyControlled()) HandleReload();
-}
 
 void UCombatComponent::OnRep_CombatState()
 {
 	switch (CombatState)
 	{
 	case ECombatState::ECS_Unoccupide:
-		if(bFireButtonPressed)
+		if (bFireButtonPressed)
 		{
 			Fire();
 		}
 		break;
 	case ECombatState::ECS_Reloading:
-		if(Character && !Character->IsLocallyControlled()) HandleReload();
+		if (Character && !Character->IsLocallyControlled()) HandleReload();
 		break;
 	case ECombatState::ECS_MAX:
 		break;
@@ -469,6 +426,38 @@ void UCombatComponent::OnRep_CombatState()
 	}
 }
 
+void UCombatComponent::Reload()
+{
+	if(Character == nullptr) return;
+	if(CarriedAmmo > 0 &&
+	CombatState != ECombatState::ECS_Reloading && 
+	CombatState == ECombatState::ECS_Unoccupide &&
+	!bLocalyReloading && 
+	!EquippedWeapon->IsFull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Pass Reload func"));
+		ServerReload();
+		HandleReload();
+		bLocalyReloading = true;
+	}
+}
+
+void UCombatComponent::ServerReload_Implementation()
+{
+	if(Character == nullptr || EquippedWeapon == nullptr) return;
+	CombatState = ECombatState::ECS_Reloading;
+	if(!Character->IsLocallyControlled()) HandleReload();
+}
+
+void UCombatComponent::HandleReload()
+{
+	if (Character)
+	{
+		Character->PlayReloadMontage();
+	}
+}
+
+// Executing from BP when montage over
 void UCombatComponent::FinishReloading()
 {
 	if(Character == nullptr) return;
@@ -476,67 +465,14 @@ void UCombatComponent::FinishReloading()
 	if(Character->HasAuthority())
 	{
 		CombatState = ECombatState::ECS_Unoccupide;
-		UpdateAmmoValues();
+		if(Character->GetInventory())
+		{
+			Character->GetInventory()->Reload();
+		}
 	}
 	if(bFireButtonPressed)
 	{
 		Fire();
-	}
-}
-
-void UCombatComponent::UpdateAmmoValues()
-{
-	if (Character == nullptr || EquippedWeapon == nullptr) return;
-	int32 ReloadAmount = AmountToReload();
-	if (CarriedAmmoMap.Contains(EquippedWeapon->GetWeaponAmmoType()))
-	{
-		CarriedAmmoMap[EquippedWeapon->GetWeaponAmmoType()] -= ReloadAmount;
-		CarriedAmmo = CarriedAmmoMap[EquippedWeapon->GetWeaponAmmoType()];
-	}
-	Controller = Controller == nullptr ? Cast <AHAPlayerController>(Character->Controller) : Controller;
-	if (Controller)
-	{
-		Controller->SetHUDAmmoOfType(CarriedAmmo);
-	}
-	EquippedWeapon->AddAmmo(ReloadAmount);
-}
-
-void UCombatComponent::HandleReload()
-{
-	if(Character)
-	{
-		Character->PlayReloadMontage();
-	}
-}
-
-int32 UCombatComponent::AmountToReload()
-{
-	if(EquippedWeapon == nullptr) return 0;
-	int32 SpaceInMag = EquippedWeapon->GetMagCapacity() - EquippedWeapon->GetAmmo();
-
-	if(CarriedAmmoMap.Contains(EquippedWeapon->GetWeaponAmmoType()))
-	{
-		int32 AmountCarried = CarriedAmmoMap[EquippedWeapon->GetWeaponAmmoType()];
-		int32 Least = FMath::Min(SpaceInMag, AmountCarried);
-		return FMath::Clamp(SpaceInMag, 0, Least);
-	}
-	return 0;
-}
-
-void UCombatComponent::OnRep_EquippedWeapon()
-{
-	if(EquippedWeapon && Character)
-	{
-		EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
-		OnChangeWeaponDelegate.Broadcast(EquippedWeapon);
-		
-		const USkeletalMeshSocket* RightHandSocket = Character->GetMesh()->GetSocketByName(FName("RightHandSocket"));
-		if (RightHandSocket)
-		{
-			RightHandSocket->AttachActor(EquippedWeapon, Character->GetMesh());
-		}
-		Character->GetCharacterMovement()->bOrientRotationToMovement = false;
-		Character->bUseControllerRotationYaw = true;
 	}
 }
 
@@ -548,16 +484,6 @@ void UCombatComponent::OnRep_CarriedAmmo()
 		Controller->SetHUDAmmoOfType(CarriedAmmo);
 	}
 }
-
-void UCombatComponent::InitializeCarriedAmmo()
-{
-	CarriedAmmoMap.Emplace(EAmmoType::EAT_Light, StartingLightAmmo);
-	CarriedAmmoMap.Emplace(EAmmoType::EAT_Shotgun, StartingShotgunAmmo);
-	CarriedAmmoMap.Emplace(EAmmoType::EAT_Rifle, StartingRifleAmmo);
-	CarriedAmmoMap.Emplace(EAmmoType::EAT_Sniper, StartingSniperAmmo);
-	CarriedAmmoMap.Emplace(EAmmoType::EAT_Launcher, StartingLauncherAmmo);
-}
-
 
 /*
 *	Bool checks

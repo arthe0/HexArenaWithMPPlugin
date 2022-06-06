@@ -43,6 +43,15 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Health, VisibleAnywhere, Category = "Player Sats")
 	float Health = 100.f;
 
+	UPROPERTY(EditAnywhere, Category = "Regeneration")
+	float TimeToRegen = 5.f;
+
+	UPROPERTY(EditAnywhere, Category = "Regeneration")
+	float Frequency = 0.25f;
+
+	UPROPERTY(EditAnywhere, Category = "Regeneration")
+	float HealAmount = 5.0f;
+
 	UFUNCTION()
 	void OnRep_Health();
 

@@ -6,6 +6,7 @@ enum class EPickupTypes : uint8
 	EPT_Weapon UMETA(DisplayName = "Weapon"),
 	EPT_Ammo UMETA(DisplayName = "Ammo"),
 	EPT_PowerUp UMETA(DisplayName = "PowerUP"),
+	EPT_LootBox UMETA(DisplayName = "LootBox"),
 
 	EPT_MAX UMETA(DisplayName = "DefaultMax"),
 };

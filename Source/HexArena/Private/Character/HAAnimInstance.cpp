@@ -64,9 +64,12 @@ void UHAAnimInstance::NativeUpdateAnimation(float DeltaTime)
 		if(HACharacter->IsLocallyControlled())
 		{ 
 			bLocllyControlled = true;
-			FTransform RightHandTrnsform = EquippedWeapon->GetWeaponMesh()->GetSocketTransform(FName("hand_r"), ERelativeTransformSpace::RTS_World);
-			FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(RightHandTrnsform.GetLocation(), RightHandTrnsform.GetLocation() + (RightHandTrnsform.GetLocation() - HACharacter->GetHitTarget()));
-			RightHandRotation = FMath::RInterpTo(RightHandRotation,LookAtRotation, DeltaTime, 15.f);
+			if(EquippedWeapon)
+			{
+				FTransform RightHandTrnsform = EquippedWeapon->GetWeaponMesh()->GetSocketTransform(FName("hand_r"), ERelativeTransformSpace::RTS_World);
+				FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(RightHandTrnsform.GetLocation(), RightHandTrnsform.GetLocation() + (RightHandTrnsform.GetLocation() - HACharacter->GetHitTarget()));
+				RightHandRotation = FMath::RInterpTo(RightHandRotation, LookAtRotation, DeltaTime, 15.f);
+			}
 		}
 		/* Debugging aim and muzzle directions
 		FTransform MuzzleTipTransform = EquippedWeapon->GetWeaponMesh()->GetSocketTransform(FName("MuzzleFlash"), ERelativeTransformSpace::RTS_World);
@@ -108,6 +111,12 @@ void UHAAnimInstance::CalculateWeaponSway(const float DeltaTime)
 
 void UHAAnimInstance::OnWeaponChanged(ABaseWeapon* Weapon)
 {
+	if(!Weapon)
+	{
+		EquippedWeapon = nullptr;
+		return;
+	}
+
 	EquippedWeapon = Weapon;
 	IKProperties = EquippedWeapon->WeaponData.IKProperties;
 	RightHandModifier = IKProperties.RightHandModifier;
@@ -117,6 +126,9 @@ void UHAAnimInstance::OnWeaponChanged(ABaseWeapon* Weapon)
 
 void UHAAnimInstance::SetIKTransforms()
 {
-	RightHandToSightTransform = EquippedWeapon->GetsightsWorldTransform().GetRelativeTransform(CharacterMesh->GetSocketTransform(FName("hand_r")));
-	
+	if(EquippedWeapon)
+	{
+		RightHandToSightTransform = EquippedWeapon->GetsightsWorldTransform().GetRelativeTransform(CharacterMesh->GetSocketTransform(FName("hand_r")));
+	}
 }
+	

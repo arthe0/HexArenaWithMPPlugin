@@ -5,53 +5,31 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PickupTypes.h"
+#include "Interactable.h"
 #include "BasePickup.generated.h"
 
+
 class USphereComponent;
-class UWidgetComponent;
+class UWidgetComponent;class UCharacterMovementComponent;
 
 UCLASS()
-class HEXARENA_API ABasePickup : public AActor
+class HEXARENA_API ABasePickup : public AInteractable
 {
 	GENERATED_BODY()
 	
 public:	
 	ABasePickup();
 
-	void ShowPickupWidget(bool bShowWidget);
-
-	UPROPERTY(EditAnywhere)
-	EPickupTypes PickupType;
+	void AddImpulse(FVector Vector, FName BoneName = NAME_None, bool bVelocity = false);
 
 protected:
 	virtual void BeginPlay() override;
 
-	UFUNCTION()
-		virtual void OnSphereOverlap(
-			UPrimitiveComponent* OverlappedComponent,
-			AActor* OtherActor,
-			UPrimitiveComponent* OtherComp,
-			int32 OtherBodyIndex,
-			bool bFromSweep,
-			const FHitResult& SweepResult
-		);
-
-	UFUNCTION()
-		void OnSphereEndOverlap(
-			UPrimitiveComponent* OverlappedComponent,
-			AActor* OtherActor,
-			UPrimitiveComponent* OtherComp,
-			int32 OtherBodyIndex
-		);
-
-	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
-	USphereComponent* AreaSphere;
-
-	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
-	UWidgetComponent* PickupWidget;
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	UStaticMeshComponent* PhysicsMeshComponent;
 
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+
+	FORCEINLINE UStaticMeshComponent* GetPhysicsMesh() { return PhysicsMeshComponent; }
 
 };

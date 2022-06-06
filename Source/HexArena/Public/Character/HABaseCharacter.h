@@ -14,14 +14,12 @@
 #include "HAComponents/HitBoxComponent.h"
 #include "HABaseCharacter.generated.h"
 
-
-
 class UCombatComponent;
 class UHealthComponent;
 class UCameraComponent;
 class UWidgetComponent;
 class ABaseWeapon;
-class ABasePickup;
+class AInteractable;
 class UAnimMontage;
 class AHAPlayerController;
 class UTimelineComponent;
@@ -41,6 +39,8 @@ public:
 	AHABaseCharacter(const FObjectInitializer& ObjInit);
 	
 	friend UHealthComponent;
+	friend UCombatComponent;
+	friend UInventory;
 
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -64,11 +64,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Mesh")
 	USkeletalMeshComponent* ClientMesh;
 
+	UPROPERTY(Replicated)
+	bool bDisableCombat = false;
+
 protected:
 
 	bool bIsMovingForward = false;
 
 	virtual void BeginPlay() override;
+
+	/*
+	* Input Functions
+	*/
 
 	void MoveForward(float Amount);
 	void MoveRight(float Amount);
@@ -85,6 +92,9 @@ protected:
 	void SprintButtonPressed();
 	void SprintButtonReleased();
 	void AimOffset(float DeltaTime);
+	void SwapWeaponButtonPressed();
+	void LowerWeaponButtonPesssed();
+	void DropWeaponButtonPressed();
 
 	//	Poll for any relevant class and init HUD
 	void PollInit();
@@ -156,22 +166,31 @@ private:
 	UWidgetComponent* OverheadWidget;
 
 	UPROPERTY(ReplicatedUsing = OnRep_OverlappingPickup)
-	ABasePickup* OverlappingPickup;
+	AInteractable* OverlappingPickup;
 
 	UFUNCTION()
-	void OnRep_OverlappingPickup(ABasePickup* LastPickup);
+	void OnRep_OverlappingPickup(AInteractable* LastPickup);
 
 	UFUNCTION(Server, Reliable)
 	void ServerEquipButtonPressed();
 
-	UFUNCTION()
-	void EquipWeaponHandle(ABasePickup* Pickup);
+	UFUNCTION(Server, Reliable)
+	void ServerSwapButtonPressed();
+
+	UFUNCTION(Server, Reliable)
+	void ServerLowerButtonPressed();
 
 	UFUNCTION()
-	void EquipAmmoHandle(ABasePickup* Pickup);
+	void EquipWeaponHandle(AInteractable* Pickup);
 
 	UFUNCTION()
-	void EquipPowerUpHandle(ABasePickup* Pickup);
+	void EquipAmmoHandle(AInteractable* Pickup);
+
+	UFUNCTION()
+	void EquipPowerUpHandle(AInteractable* Pickup);
+
+	UFUNCTION()
+	void InteractWitchLootBoxHandle(AInteractable* InteractObject);
 
 	/*
 	 *	HA Components 
@@ -256,7 +275,7 @@ private:
 
 	AHaPlayerState* HAPlayerState;
 public:
-	void SetOverlappingPickup(ABasePickup* Pickup);
+	void SetOverlappingPickup(AInteractable* Pickup);
 	bool IsWeaponEquipped();
 	bool IsAiming();
 
@@ -281,4 +300,5 @@ public:
 
 	FORCEINLINE ULagCompensationComponent* GetLagCompensation () const { return LagCompensation; }
 	FORCEINLINE UCombatComponent* GetCombat () const { return Combat; }
+	FORCEINLINE UInventory* GetInventory () const { return Inventory; }
 };

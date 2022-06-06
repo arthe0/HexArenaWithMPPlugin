@@ -5,70 +5,51 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Character/HABaseCharacter.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "../HexArena.h"
 
-// Sets default values
 ABasePickup::ABasePickup()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
+
+	PhysicsMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsMeshComponent"));
+	SetRootComponent(PhysicsMeshComponent);
+
+	PhysicsMeshComponent->SetSimulatePhysics(true);
+	PhysicsMeshComponent->SetEnableGravity(true);
+	PhysicsMeshComponent->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 
 	AreaSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AreaSphere"));
-	AreaSphere->SetupAttachment(RootComponent);
+	AreaSphere->SetupAttachment(PhysicsMeshComponent);
 	AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	AreaSphere->SetCollisionResponseToChannel(ECC_SkeletalMesh, ECollisionResponse::ECR_Overlap);
 	AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	PickupWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("PickupWidget"));
-	PickupWidget->SetupAttachment(RootComponent);
+	PickupWidget->SetupAttachment(AreaSphere);
 
 }
 
-// Called when the game starts or when spawned
+void ABasePickup::AddImpulse(FVector Vector, FName BoneName, bool bVelocity)
+{
+	PhysicsMeshComponent->AddImpulse(Vector, BoneName, bVelocity);
+}
+
 void ABasePickup::BeginPlay()
 {
 	Super::BeginPlay();
 
 	AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+	AreaSphere->SetCollisionResponseToChannel(ECC_SkeletalMesh, ECollisionResponse::ECR_Overlap);
 	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &ABasePickup::OnSphereOverlap);
 	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &ABasePickup::OnSphereEndOverlap);
 
 	if (PickupWidget)
 	{
 		PickupWidget->SetVisibility(false);
-	}
-	
+	}	
 }
 
-void ABasePickup::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-
-void ABasePickup::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	AHABaseCharacter* HACharacter = Cast<AHABaseCharacter>(OtherActor);
-	if (HACharacter)
-	{
-		HACharacter->SetOverlappingPickup(this);
-	}
-}
-
-void ABasePickup::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	AHABaseCharacter* HACharacter = Cast<AHABaseCharacter>(OtherActor);
-	if (HACharacter)
-	{
-		HACharacter->SetOverlappingPickup(nullptr);
-	}
-}
-
-void ABasePickup::ShowPickupWidget(bool bShowWidget)
-{
-	if (PickupWidget)
-	{
-		PickupWidget->SetVisibility(bShowWidget);
-	}
-}
 
 

@@ -4,6 +4,7 @@
 #include "HexBlock/HexBlock.h"
 #include "Components/StaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "../HexArena.h"
 
 AHexBlock::AHexBlock()
 {
@@ -11,10 +12,11 @@ AHexBlock::AHexBlock()
 	HexMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HexStaticMesh"));
 	HexMeshComponent->SetupAttachment(GetRootComponent());
 	SetRootComponent(HexMeshComponent);
+	HexMeshComponent->SetCollisionResponseToChannel(ECC_PickupPhysics, ECollisionResponse::ECR_Block);
 
 	PlatformMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlatformStaticMesh"));
 	PlatformMeshComponent->SetupAttachment(GetRootComponent());
-
+	PlatformMeshComponent->SetCollisionResponseToChannel(ECC_PickupPhysics, ECollisionResponse::ECR_Block);
 }
 
 void AHexBlock::BeginPlay()

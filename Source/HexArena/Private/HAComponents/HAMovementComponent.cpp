@@ -27,7 +27,7 @@ void UHAMovementComponent::Run()
 	{
 		UnCrouch();
 	}
-	MaxWalkSpeed = MaxWalkSpeed*RunMultiplyer;
+	MaxWalkSpeed = MaxWalkSpeed*CurrentRunMultiplyer;
 }
 
 void UHAMovementComponent::EndRun()
@@ -35,18 +35,48 @@ void UHAMovementComponent::EndRun()
 	MaxWalkSpeed = BaseWalkSpeed;
 }
 
+void UHAMovementComponent::SetSpeed(bool bAiming)
+{
+	if(IsCrouching())
+	{
+		if(bAiming)
+		{
+			MaxWalkSpeedCrouched = CurrentCrouchWalkSpeed * CurrentAimSpeedMultiplyer;
+		}
+		else
+		{
+			MaxWalkSpeedCrouched = CurrentCrouchWalkSpeed;
+		}
+	}
+	else
+	{
+		if (bAiming)
+		{
+			MaxWalkSpeed = CurrentWalkSpeed * CurrentAimSpeedMultiplyer;
+		}
+		else
+		{
+			MaxWalkSpeed = CurrentWalkSpeed;
+		}
+	}
+}
+
 void UHAMovementComponent::OnWeaponChanged(ABaseWeapon* Weapon)
 {
 	if(Weapon)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Movement component: WeaponChanged"));
-		BaseWalkSpeed = Weapon->WeaponData.BaseWalkSpeed;
+		CurrentWalkSpeed = Weapon->WeaponData.BaseWalkSpeed;
+		CurrentCrouchWalkSpeed = Weapon->WeaponData.BaseCrouchSpeed;
+		CurrentRunMultiplyer = Weapon->WeaponData.RunMultiplyer;
+		CurrentAimSpeedMultiplyer = Weapon->WeaponData.ADSMultiplyer;
+		SetSpeed(HAOwnerCharacter->IsAiming());
+	}
+	else
+	{
 		MaxWalkSpeed = BaseWalkSpeed;
-
-		BaseCrouchWalkSpeed = Weapon->WeaponData.BaseCrouchSpeed;
 		MaxWalkSpeedCrouched = BaseCrouchWalkSpeed;
-
-		RunMultiplyer = Weapon->WeaponData.RunMultiplyer;
-		AimSpeedMultiplyer = Weapon->WeaponData.ADSMultiplyer;
+		CurrentRunMultiplyer = BaseRunMultiplyer;
+		CurrentAimSpeedMultiplyer = BaseAimSpeedMultiplyer;
 	}
 }

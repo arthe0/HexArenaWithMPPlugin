@@ -42,8 +42,12 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	void EquipWeapon(ABaseWeapon* WeaponToEquip);
 	void Reload();
+
+	// Carried for a Weapon ammo type uses for HUD and reload starting
+	UPROPERTY(ReplicatedUsing = OnRep_CarriedAmmo)
+	int32 CarriedAmmo;
+
 
 protected:
 	virtual void BeginPlay() override;
@@ -93,7 +97,7 @@ private:
 
 	AHAHUD* HUD;
 
-	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeapon)
+	UPROPERTY(Replicated/*Using = OnRep_EquippedWeapon*/)
 	ABaseWeapon* EquippedWeapon;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Aiming)
@@ -140,12 +144,6 @@ private:
 
 	float CurrentFOV;
 
-	UPROPERTY(EditAnywhere, Category = Combat)
-	float ZoomedFOV = 70.f;
-
-	UPROPERTY(EditAnywhere, Category = Combat)
-	float ZoomInterpSpeed = 20.f;
-
 	UPROPERTY(EditAnywhere, /*Replicated,*/ Category = Anim)
 	float ADSWeight = 0.f;
 
@@ -159,21 +157,16 @@ private:
 
 	void StartFireTimer();
 	void FireTimerFinished();
-
+	
 	bool CanFire();
 
 	/*
 	* Ammo
 	*/
 
-	// Carried for a Weapon ammo type
-	UPROPERTY(ReplicatedUsing = OnRep_CarriedAmmo)
-	int32 CarriedAmmo;
 
 	UFUNCTION()
 	void OnRep_CarriedAmmo();
-
-	void UpdateAmmoValues();
 
 	UPROPERTY(EditAnywhere, Category = "Ammo")
 	int32 StartingLightAmmo = 30;
@@ -196,5 +189,5 @@ private:
 	UFUNCTION()
 	void OnRep_CombatState();
 public:	
-		
+	void SetWeapon(ABaseWeapon* WeaponToEquip);	
 };
