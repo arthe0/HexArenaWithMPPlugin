@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerStart.h"
 #include "PlayerStates//HaPlayerState.h"
 #include "HexBlock/HexBlock.h"
+#include "Pickups/BasePickup.h"
 
 namespace MatchState
 {
@@ -86,6 +87,14 @@ void AHAGameMode::Tick(float DeltaTime)
 			MoveEvent();
 		}
 	}
+	else if (MatchState == MatchState::Cooldown)
+	{
+		CountdownTime = CooldownTime + WarmupTime + RoundTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
+		if (CountdownTime <= 0.f)
+		{
+			RestartGame();
+		}
+	}
 
 }
 
@@ -143,6 +152,19 @@ void AHAGameMode::RequestRespawn(class AHABaseCharacter* Eliminated, AController
 void AHAGameMode::MoveEvent()
 {	
 	float RandNum;
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABasePickup::StaticClass(), FoundActors);
+	for(auto& Actor : FoundActors)
+	{
+		ABasePickup* FoundPickup = Cast<ABasePickup>(Actor);
+		if(FoundPickup)
+		{
+			if(FoundPickup->GetPhysicsMesh()->IsAnyRigidBodyAwake()) return;
+			FoundPickup->GetPhysicsMesh()->WakeAllRigidBodies();
+		}
+	}
+
 	for (auto& BlockGroup : BlockGroups)
 	{
 		RandNum = FMath::FRandRange(.0f, 1.f);
