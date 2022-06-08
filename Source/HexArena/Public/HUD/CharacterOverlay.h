@@ -16,11 +16,25 @@ class HEXARENA_API UCharacterOverlay : public UUserWidget
 {
 	GENERATED_BODY()
 public:
+	/**
+	*	Health and shields 
+	*/
+
 	UPROPERTY(meta = (BindWidget))
 	UProgressBar* HealthBar;
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* HealthText;
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* ShieldBar;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* ShieldText;
+
+	/**
+	*	Timer and stats
+	*/
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimerText;
@@ -31,6 +45,10 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* StatsDeaths;
 
+	/**
+	*	Combat
+	*/
+
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* WeaponAmmo;
 
@@ -38,13 +56,38 @@ public:
 	UTextBlock* AmmoOfType;
 
 	UPROPERTY(meta = (BindWidget))
-	UImage* HighPingImage;
+	UImage* WeaponImage;
 
 	UPROPERTY(meta = (BindWidget))
-	UImage* WeaponImage;
+	UImage* AmmoTypeImage;
+
+	/**
+	*	Net
+	*/
+
+	UPROPERTY(meta = (BindWidget))
+	UImage* HighPingImage;
 
 	UPROPERTY(meta = (BindWidgetAnim), Transient)
 	UWidgetAnimation* HighPingAnimation;
 
+	/**
+	*	Teams and gamemode
+	*/
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* TargetScoreText;
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* YellowTeamScoreBar;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* YellowTeamScoreText;
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* GreenTeamScoreBar;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* GreenTeamScoreText;
 
 };

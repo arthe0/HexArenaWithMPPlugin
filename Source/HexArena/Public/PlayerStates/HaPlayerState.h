@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include <HATypes/Team.h>
 //#include "HATypes/Team.h"
 #include "HaPlayerState.generated.h"
 
@@ -41,10 +42,13 @@ private:
 	UPROPERTY(Replicated)
 	float Kills = 0.f;
 
-	//UFUNCTION()
-	//void OnRep_Team();
+	UFUNCTION()
+	void OnRep_Team();
 
+	UPROPERTY(ReplicatedUsing = OnRep_Team, EditAnywhere)
+	ETeam Team = ETeam::ET_NoTeam;
 	
 public:
-	
+	FORCEINLINE ETeam GetTeam() const { return Team; }
+	void SetTeam (ETeam TeamToSet);
 };

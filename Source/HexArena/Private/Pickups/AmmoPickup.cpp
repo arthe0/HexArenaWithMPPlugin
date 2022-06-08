@@ -25,14 +25,39 @@ AAmmoPickup::AAmmoPickup()
 	bAutoPickup = true;
 
 	PickupType = EPickupTypes::EPT_Ammo;
+
+	static ConstructorHelpers::FObjectFinder<UDataTable> LootDTObject(TEXT("DataTable'/Game/Blueprints/Pickups/DT_AmmoPickups.DT_AmmoPickups'"));
+	if (LootDTObject.Succeeded())
+	{
+		AmmoTable = LootDTObject.Object;
+	}
 }
 
 void AAmmoPickup::BeginPlay()
 {
 	Super::BeginPlay();
+	SetAmmoDataByName(AmmoName);
+}
+
+void AAmmoPickup::SetAmmoDataByName(FName NewName)
+{
+	if (HasAuthority())
+	{
+		MulticastSetAmmoDataByName(NewName);
+	}
+}
+
+void AAmmoPickup::MulticastSetAmmoDataByName_Implementation(FName NewName)
+{
+	AmmoName = NewName;
+	if (AmmoTable)
+	{
+		AmmoPickupData = *AmmoTable->FindRow<FAmmoPickupData>(AmmoName, "");
+	}
 
 	StaticMeshComponent->SetStaticMesh(AmmoPickupData.Mesh);
 }
+
 
 FName AAmmoPickup::GetAmmoName_Implementation()
 {

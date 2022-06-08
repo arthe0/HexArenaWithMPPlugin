@@ -36,13 +36,26 @@ ABaseWeapon::ABaseWeapon()
 	{
 		WeaponTable = LootDTObject.Object;
 	}
-	//Ammo = WeaponData.MagCapacity;
 }
 
 void ABaseWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 
+	SetWeaponDataByName(WeaponName);
+}
+
+void ABaseWeapon::SetWeaponDataByName(FName NewName)
+{
+	if(HasAuthority())
+	{
+		MulticastSetWeaponDataByName(NewName);
+	}
+}
+
+void ABaseWeapon::MulticastSetWeaponDataByName_Implementation(FName NewName)
+{
+	WeaponName = NewName;
 	if (WeaponTable)
 	{
 		WeaponData = *WeaponTable->FindRow<FWeaponData>(WeaponName, "");
@@ -53,7 +66,6 @@ void ABaseWeapon::BeginPlay()
 
 	Ammo = WeaponData.MagCapacity;
 }
-
 
 void ABaseWeapon::Tick(float DeltaTime)
 {
@@ -66,7 +78,7 @@ void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ABaseWeapon, WeaponState);
-	//DOREPLIFETIME_CONDITION(ABaseWeapon, WeaponData, COND_SimulatedOnly);
+	DOREPLIFETIME(ABaseWeapon, WeaponData);
 	DOREPLIFETIME_CONDITION(ABaseWeapon, bUseSSR, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ABaseWeapon, Ammo, COND_OwnerOnly);
 }

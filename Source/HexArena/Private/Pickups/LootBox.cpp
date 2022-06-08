@@ -77,7 +77,6 @@ void ALootBox::OpenBox()
 	bIsRefilling = true;
 	RefilTimer = 0.f;
 	PickupWidget->SetVisibility(false);
-	UE_LOG(LogTemp, Warning, TEXT("Box is open!"));
 	CreateLootItems();
 	ServerOpenBox();
 }
@@ -94,7 +93,6 @@ void ALootBox::GenerateLoot()
 	AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	LootBoxComponent->MarkRenderStateDirty();
 	EnableCustomDepth(true);
-	UE_LOG(LogTemp, Warning, TEXT("Loot generated!"));
 
 	if(LootTable)
 	{
@@ -132,16 +130,16 @@ void ALootBox::CreateLootItems()
 		if(Loot[I]->PickupType == EPickupTypes::EPT_Weapon)
 		{
 			ABaseWeapon* BaseWeapon = World->SpawnActorDeferred<ABaseWeapon>(Loot[I]->LootClass, this->GetTransform());
-			BaseWeapon->SetWeaponName(Loot[I]->LootName);
+			BaseWeapon->SetWeaponDataByName(Loot[I]->LootName);
 			BaseWeapon->FinishSpawning(this->GetTransform());
 			BaseWeapon->AddImpulse(FVector((50.f - I * 50.f), 100, 150), NAME_None, true);
 		}
 		else if(Loot[I]->PickupType == EPickupTypes::EPT_Ammo)
 		{
 			AAmmoPickup* AmmoPickup = World->SpawnActorDeferred<AAmmoPickup>(Loot[I]->LootClass, this->GetTransform());
-			AmmoPickup->SetAmmoName(Loot[I]->LootName);
+			AmmoPickup->SetAmmoDataByName(Loot[I]->LootName);
 			AmmoPickup->FinishSpawning(this->GetTransform());
-			AmmoPickup->AddImpulse(FVector((150.f - I * 100.f), 200, 300), NAME_None, true);
+			AmmoPickup->AddImpulse(FVector((50.f - I * 50.f), 100, 150), NAME_None, true);
 		}
 	}
 	Loot.Empty();

@@ -38,7 +38,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Table Data")
 	FName AmmoName = "RifleAmmo";
 
-
+	void SetAmmoDataByName(FName NewName);
 
 protected:
 	virtual void BeginPlay() override;
@@ -47,6 +47,11 @@ protected:
 	UPROPERTY(EditAnywhere)
 	UStaticMeshComponent* StaticMeshComponent;
 private:
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetAmmoDataByName(FName NewName);
+
+	UDataTable* AmmoTable;
 
 	UPROPERTY(EditAnywhere)
 	int32 AmmoAmount = 30;
@@ -55,6 +60,6 @@ public:
 	FName GetAmmoName();
 
 	FORCEINLINE int32 GetAmmoAmount () { return AmmoAmount; }
-	FORCEINLINE void SetAmmoName(FName NewName) { AmmoName = NewName; }
+
 
 };

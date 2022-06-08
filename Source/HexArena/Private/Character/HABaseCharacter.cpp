@@ -28,6 +28,8 @@
 #include "Pickups/AmmoPickup.h"
 #include "Pickups/Interactable.h"
 #include "Pickups/LootBox.h"
+#include "PlayerStart/TeamPlayerStart.h"
+#include "Kismet/GameplayStatics.h"
 
 AHABaseCharacter::AHABaseCharacter(const FObjectInitializer& ObjInit)
 	:Super(ObjInit.SetDefaultSubobjectClass<UHAMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -173,6 +175,14 @@ AHABaseCharacter::AHABaseCharacter(const FObjectInitializer& ObjInit)
 			Box.Value->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		}
 	}
+
+	static ConstructorHelpers::FObjectFinder<UDataTable> TeamColorsObject(TEXT("DataTable'/Game/Blueprints/Character/Materials/DT_TeamColors.DT_TeamColors'"));
+	if (TeamColorsObject.Succeeded())
+	{
+		TeamColorsDT = TeamColorsObject.Object;
+	}
+
+	SetTeamColor(TeamName);
 }
 
 void AHABaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -503,7 +513,7 @@ void AHABaseCharacter::EquipButtonPressed()
 			//EquipAmmoHandle(OverlappingPickup);
 			break;
 		case EPickupTypes::EPT_LootBox:
-			InteractWitchLootBoxHandle(OverlappingPickup);
+			InteractWithLootBoxHandle(OverlappingPickup);
 			break;
 		}
 	}
@@ -532,7 +542,7 @@ void AHABaseCharacter::ServerEquipButtonPressed_Implementation()
 		//EquipAmmoHandle(OverlappingPickup);
 		break;
 	case EPickupTypes::EPT_LootBox:
-		InteractWitchLootBoxHandle(OverlappingPickup);
+		InteractWithLootBoxHandle(OverlappingPickup);
 		break;
 	}
 }
@@ -563,7 +573,7 @@ void AHABaseCharacter::EquipPowerUpHandle(AInteractable* Pickup)
 
 }
 
-void AHABaseCharacter::InteractWitchLootBoxHandle(AInteractable* InteractObject)
+void AHABaseCharacter::InteractWithLootBoxHandle(AInteractable* InteractObject)
 {
 	ALootBox* OverlappingLootBox = Cast<ALootBox>(InteractObject);
 	if(OverlappingLootBox)
@@ -609,11 +619,56 @@ void AHABaseCharacter::PollInit()
 {
 	if(HAPlayerState == nullptr)
 	{
-		HAPlayerState = GetPlayerState<AHaPlayerState>();
-		if(HAPlayerState)
+		OnPlayerStateInit();
+		SetSpawnPoint();
+	}
+}
+
+void AHABaseCharacter::SetSpawnPoint()
+{
+	if(HasAuthority() && HAPlayerState->GetTeam() != ETeam::ET_NoTeam)
+	{
+		TArray<AActor*> PlayerStarts;
+		UGameplayStatics::GetAllActorsOfClass(this, ATeamPlayerStart::StaticClass(), PlayerStarts);
+		TArray<ATeamPlayerStart*> TeamPlayerStarts;
+		for (auto Start : PlayerStarts)
 		{
-			HAPlayerState->AddToScore(0.f);
-			HAPlayerState->AddToDeaths(0);
+			ATeamPlayerStart* TeamStart = Cast<ATeamPlayerStart>(Start);
+			if(TeamStart && TeamStart->Team == HAPlayerState->GetTeam())
+			{
+				TeamPlayerStarts.Add(TeamStart);
+			}
+		}
+		if(TeamPlayerStarts.Num() > 0)
+		{
+			ATeamPlayerStart* ChosenplayerStart = TeamPlayerStarts[FMath::RandRange(0, TeamPlayerStarts.Num()-1)];
+			SetActorLocationAndRotation(
+				ChosenplayerStart->GetActorLocation(),
+				ChosenplayerStart->GetActorRotation()
+			);
+		}
+	}
+}
+
+void AHABaseCharacter::OnPlayerStateInit()
+{
+	HAPlayerState = GetPlayerState<AHaPlayerState>();
+	if (HAPlayerState)
+	{
+		HAPlayerState->AddToScore(0.f);
+		HAPlayerState->AddToDeaths(0);
+
+		switch (HAPlayerState->GetTeam())
+		{
+		case ETeam::ET_GreenTeam:
+			SetTeamName("GreenTeam");
+			break;
+		case ETeam::ET_YellowTeam:
+			SetTeamName("YellowTeam");
+			break;
+		case ETeam::ET_NoTeam:
+			SetTeamName("NoTeam");
+			break;
 		}
 	}
 }
@@ -630,49 +685,32 @@ void AHABaseCharacter::TurnInPlace(float DeltaTime)
 	}
 }
 
-
 /*
  * Death handle functions
  */
 
-void AHABaseCharacter::Death()
+void AHABaseCharacter::Death(bool bPlayerLeftGame /*= false*/)
 {
 	if(Inventory)
 	{
 		Inventory->OnDeath();
 	}
 
-	MulticastDeath();
-	GetWorldTimerManager().SetTimer(
-		DeathTimer, 
-		this,
-		&AHABaseCharacter::DeathTimerFinished,
-		DeathDelay
-	);
+	MulticastDeath(bPlayerLeftGame);
 }
 
-void AHABaseCharacter::MulticastDeath_Implementation()
+void AHABaseCharacter::MulticastDeath_Implementation(bool bPlayerLeftGame /*= false*/)
 {
+	bLeftGame = bPlayerLeftGame;
 	if(HAPlayerController)
 	{
 		HAPlayerController->SetHUDWeaponAmmo(0);
 	}
 	bDeath = true;
 	PlayDeathMontage();
-	//Start Dissolving effect 
-	if(BodyDissolveMaterialInstance && EquipDissolveMaterialInstance)
-	{
-		DynamicBodyDissolveMaterialInstance = UMaterialInstanceDynamic::Create(BodyDissolveMaterialInstance, this);
-		DynamicEquipDissolveMaterialInstance = UMaterialInstanceDynamic::Create(EquipDissolveMaterialInstance, this);
-
-		GetMesh()->SetMaterial(0, DynamicBodyDissolveMaterialInstance);
-		GetMesh()->SetMaterial(1, DynamicEquipDissolveMaterialInstance);
-
-		DynamicBodyDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), 0.6f);
-		DynamicBodyDissolveMaterialInstance->SetScalarParameterValue(TEXT("Glow"), 200.f);
-		DynamicEquipDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), 0.6f);
-		DynamicEquipDissolveMaterialInstance->SetScalarParameterValue(TEXT("Glow"), 200.f);
-	}
+	//Start Dissolving effect if it is set
+	
+	SetDissolveMaterials(TeamName);
 	StartDissolve();
 
 	//Disable character movement
@@ -702,28 +740,115 @@ void AHABaseCharacter::MulticastDeath_Implementation()
 	GetMesh()->SetEnableGravity(true);
 	GetMesh()->WakeAllRigidBodies();
 	GetMesh()->bBlendPhysics = true;
-}
 
+	GetWorldTimerManager().SetTimer(
+		DeathTimer,
+		this,
+		&AHABaseCharacter::DeathTimerFinished,
+		DeathDelay
+	);
+}
 
 void AHABaseCharacter::DeathTimerFinished()
 {
 	AHAGameMode* HAGameMode = GetWorld()->GetAuthGameMode<AHAGameMode>();
-	if(HAGameMode)
+	if(HAGameMode && !bLeftGame)
 	{
 		HAGameMode->RequestRespawn(this, Controller);
+	}
+	if(bLeftGame && IsLocallyControlled())
+	{
+		OnLeftGame.Broadcast();
+	}
+}
+
+/**
+* Leaving game
+*/
+
+void AHABaseCharacter::ServerLeaveGame_Implementation()
+{
+	AHAGameMode* HAGameMode = GetWorld()->GetAuthGameMode<AHAGameMode>();
+	HAPlayerState = HAPlayerState == nullptr ? GetPlayerState<AHaPlayerState>() : HAPlayerState;
+
+	if (HAGameMode && HAPlayerState)
+	{
+		HAGameMode->PlayerLeftGame(HAPlayerState);
 	}
 }
 
 /*
-* Dissolve effect
+* TeamColors and Dissolve effect
 */
+
+void AHABaseCharacter::SetTeamColor(FName Team)
+{
+	if(TeamColorsDT)
+	{
+		TeamColors = *TeamColorsDT->FindRow<FTeamColorsData>(Team, "");
+
+		GetMesh()->SetMaterial(0, TeamColors.BodyMaterialInstance);
+		GetMesh()->SetMaterial(1, TeamColors.ArmMaterialInstance);
+		GetMesh()->SetMaterial(2, TeamColors.UpperarmMaterialInstance);
+
+		if (IsLocallyControlled() && ClientMesh)
+		{
+			ClientMesh->SetMaterial(0, TeamColors.BodyMaterialInstance);
+			ClientMesh->SetMaterial(1, TeamColors.ArmMaterialInstance);
+			ClientMesh->SetMaterial(2, TeamColors.UpperarmMaterialInstance);
+		}
+	}
+}
+
+void AHABaseCharacter::SetDissolveMaterials(FName Team)
+{
+	if (TeamColorsDT)
+	{
+		TeamColors = *TeamColorsDT->FindRow<FTeamColorsData>(Team, "");
+
+		DynamicBodyDissolveMaterialInstance = UMaterialInstanceDynamic::Create(TeamColors.BodyDissolveMaterialInstance, this);
+		DynamicArmDissolveMaterialInstance = UMaterialInstanceDynamic::Create(TeamColors.ArmDissolveMaterialInstance, this);
+		DynamicUpperarmDissolveMaterialInstance = UMaterialInstanceDynamic::Create(TeamColors.UpperarmDissolveMaterialInstance, this);
+
+		if (DynamicBodyDissolveMaterialInstance && DynamicArmDissolveMaterialInstance && DynamicUpperarmDissolveMaterialInstance)
+		{
+			GetMesh()->SetMaterial(0, DynamicBodyDissolveMaterialInstance);
+			GetMesh()->SetMaterial(1, DynamicArmDissolveMaterialInstance);
+			GetMesh()->SetMaterial(2, DynamicUpperarmDissolveMaterialInstance);
+
+			if (IsLocallyControlled() && ClientMesh)
+			{
+				ClientMesh->SetMaterial(0, DynamicBodyDissolveMaterialInstance);
+				ClientMesh->SetMaterial(1, DynamicArmDissolveMaterialInstance);
+				ClientMesh->SetMaterial(2, DynamicUpperarmDissolveMaterialInstance);
+			}
+
+			DynamicBodyDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), 0.8f);
+			DynamicBodyDissolveMaterialInstance->SetScalarParameterValue(TEXT("Glow"), 200.f);
+
+			DynamicArmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), 0.8f);
+			DynamicArmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Glow"), 200.f);
+
+			DynamicUpperarmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), 0.8f);
+			DynamicUpperarmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Glow"), 200.f);
+		}
+	}
+}
 
 void AHABaseCharacter::UpdateDissolveMaterial(float DissolveValue)
 {
-	if(DynamicEquipDissolveMaterialInstance && DynamicBodyDissolveMaterialInstance)
+	if(DynamicArmDissolveMaterialInstance && DynamicBodyDissolveMaterialInstance && DynamicUpperarmDissolveMaterialInstance)
 	{
 		DynamicBodyDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
-		DynamicEquipDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+		DynamicArmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+		DynamicUpperarmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+
+		if (IsLocallyControlled() && ClientMesh)
+		{
+			DynamicBodyDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+			DynamicArmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+			DynamicUpperarmDissolveMaterialInstance->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+		}
 	}
 }
 
@@ -828,4 +953,9 @@ bool AHABaseCharacter::IsLocallyReloading()
 	return Combat->bLocalyReloading;
 }
 
+void AHABaseCharacter::SetTeamName(FName NewName)
+{
+	TeamName = NewName;
+	SetTeamColor(TeamName);
+}
 

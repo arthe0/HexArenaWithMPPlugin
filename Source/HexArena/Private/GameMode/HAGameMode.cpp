@@ -9,6 +9,7 @@
 #include "PlayerStates//HaPlayerState.h"
 #include "HexBlock/HexBlock.h"
 #include "Pickups/BasePickup.h"
+#include "GameState/HAGameState.h"
 
 namespace MatchState
 {
@@ -64,7 +65,25 @@ void AHAGameMode::BeginPlay()
 void AHAGameMode::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	HandleMatchState(DeltaTime);
+}
 
+void AHAGameMode::OnMatchStateSet()
+{
+	Super::OnMatchStateSet();
+
+	for(FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		AHAPlayerController* Player = Cast<AHAPlayerController>(*It);
+		if(Player)
+		{
+			Player->OnMatchStateSet(MatchState, bTeamsMath);
+		}
+	}
+}
+
+void AHAGameMode::HandleMatchState(float DeltaTime)
+{
 	if (MatchState == MatchState::WaitingToStart)
 	{
 		CountdownTime = WarmupTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
@@ -76,13 +95,13 @@ void AHAGameMode::Tick(float DeltaTime)
 	else if (MatchState == MatchState::InProgress)
 	{
 		CountdownTime = WarmupTime + RoundTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
-		if(CountdownTime <= 0.f)
+		if (CountdownTime <= 0.f)
 		{
 			SetMatchState(MatchState::Cooldown);
 		}
 
-		MoveEventTimer+=DeltaTime;
-		if(MoveEventTimer>=EventFrequency)
+		MoveEventTimer += DeltaTime;
+		if (MoveEventTimer >= EventFrequency)
 		{
 			MoveEvent();
 		}
@@ -95,20 +114,16 @@ void AHAGameMode::Tick(float DeltaTime)
 			RestartGame();
 		}
 	}
-
 }
 
-void AHAGameMode::OnMatchStateSet()
+void AHAGameMode::HandleMatchHasStarted()
 {
-	Super::OnMatchStateSet();
+	Super::HandleMatchHasStarted();
 
-	for(FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	AHAGameState* HAGameState = Cast<AHAGameState>(UGameplayStatics::GetGameState(this));
+	if (HAGameState)
 	{
-		AHAPlayerController* Player = Cast<AHAPlayerController>(*It);
-		if(Player)
-		{
-			Player->OnMatchStateSet(MatchState);
-		}
+		HAGameState->SetTargetScore(TargetScore);
 	}
 }
 
@@ -146,6 +161,16 @@ void AHAGameMode::RequestRespawn(class AHABaseCharacter* Eliminated, AController
 		UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), PlayerStarts);
 		int32 RandomSelect = FMath::RandRange(0, PlayerStarts.Num() - 1);
 		RestartPlayerAtPlayerStart(EliminatedPC, PlayerStarts[RandomSelect]);
+	}
+}
+
+void AHAGameMode::PlayerLeftGame(AHaPlayerState* LeavingPlayerState)
+{
+	if(!LeavingPlayerState) return;
+	AHABaseCharacter* Character = Cast<AHABaseCharacter>(LeavingPlayerState->GetPawn());
+	if(Character)
+	{
+		Character->Death(true);
 	}
 }
 
@@ -229,4 +254,8 @@ void AHAGameMode::MoveEvent()
 	MoveEventTimer = 0.f;
 }
 
+float AHAGameMode::CalculateDamage(AController* Attacker, AController* Victim, float Damage)
+{
+	return Damage;
+}
 

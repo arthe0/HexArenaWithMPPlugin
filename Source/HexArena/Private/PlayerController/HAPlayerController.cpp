@@ -12,6 +12,9 @@
 #include "GameMode//HAGameMode.h"
 #include "HUD/Announcment.h"
 #include "Kismet/GameplayStatics.h"
+#include "HUD/InGameMenu.h"
+#include "GameState/HAGameState.h"
+#include <HATypes/Announcment.h>
 
 
 void AHAPlayerController::BeginPlay()
@@ -22,11 +25,45 @@ void AHAPlayerController::BeginPlay()
 	ServerCheckMatchState();
 }
 
+void AHAPlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+	if(InputComponent == nullptr) return;
+
+	InputComponent->BindAction("InGameMenu", IE_Pressed, this, &AHAPlayerController::ShowInGameMenu);
+}
+
+/**
+*	Inputs 
+*/
+
+void AHAPlayerController::ShowInGameMenu()
+{
+	if(InGameMenuWidget == nullptr) return;
+	if(InGameMenu == nullptr)
+	{
+		InGameMenu = CreateWidget<UInGameMenu>(this, InGameMenuWidget);
+	}
+	if(InGameMenu)
+	{
+		bReturnToMainMenuOpen = !bReturnToMainMenuOpen;
+		if(bReturnToMainMenuOpen)
+		{
+			InGameMenu->MenuSetup();
+		}
+		else
+		{
+			InGameMenu->MenuTearDown();
+		}
+	}
+}
+
 void AHAPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AHAPlayerController, MatchState);
+	DOREPLIFETIME(AHAPlayerController, bShowTeamScores);
 }
 
 void AHAPlayerController::Tick(float DeltaTime)
@@ -40,6 +77,17 @@ void AHAPlayerController::Tick(float DeltaTime)
 	CheckPing(DeltaTime);
 }
 
+void AHAPlayerController::OnRep_ShowTeamScores()
+{
+	if (bShowTeamScores)
+	{
+		InitTeamScores();
+	}
+	else
+	{
+		HideTeamScores();
+	}
+}
 
 void AHAPlayerController::CheckPing(float DeltaTime)
 {
@@ -79,7 +127,6 @@ void AHAPlayerController::CheckPing(float DeltaTime)
 		}
 	}
 }
-
 
 void AHAPlayerController::ServerReportPingStatus_Implementation(bool bHighPing)
 {
@@ -132,6 +179,107 @@ void AHAPlayerController::OnPossess(APawn* InPawn)
 	}
 }
 
+
+void AHAPlayerController::SetHUDScoreTarget(int32 NewTargetScore)
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->TargetScoreText;
+
+	if (bHUDValid)
+	{
+		FString TargetScoreString = FString::Printf(TEXT("%d"), NewTargetScore);
+		HAHUD->CharacterOverlay->TargetScoreText->SetText(FText::FromString(TargetScoreString));
+	}
+}
+
+/**
+*  Team Scores
+*/
+
+void AHAPlayerController::HideTeamScores()
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->YellowTeamScoreText &&
+		HAHUD->CharacterOverlay->YellowTeamScoreBar &&
+		HAHUD->CharacterOverlay->GreenTeamScoreText &&
+		HAHUD->CharacterOverlay->GreenTeamScoreBar;
+
+	if (bHUDValid)
+	{
+		HAHUD->CharacterOverlay->YellowTeamScoreBar->SetVisibility(ESlateVisibility::Hidden);
+		HAHUD->CharacterOverlay->GreenTeamScoreBar->SetVisibility(ESlateVisibility::Hidden);
+		HAHUD->CharacterOverlay->YellowTeamScoreText->SetVisibility(ESlateVisibility::Hidden);
+		HAHUD->CharacterOverlay->GreenTeamScoreText->SetVisibility(ESlateVisibility::Hidden);
+	}
+}
+
+void AHAPlayerController::InitTeamScores()
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->YellowTeamScoreText &&
+		HAHUD->CharacterOverlay->YellowTeamScoreBar &&
+		HAHUD->CharacterOverlay->GreenTeamScoreText &&
+		HAHUD->CharacterOverlay->GreenTeamScoreBar;
+
+	if (bHUDValid)
+	{
+		HAHUD->CharacterOverlay->YellowTeamScoreBar->SetVisibility(ESlateVisibility::Visible);
+		HAHUD->CharacterOverlay->GreenTeamScoreBar->SetVisibility(ESlateVisibility::Visible);
+		HAHUD->CharacterOverlay->YellowTeamScoreText->SetVisibility(ESlateVisibility::Visible);
+		HAHUD->CharacterOverlay->GreenTeamScoreText->SetVisibility(ESlateVisibility::Visible);
+
+		FString Zero("0");
+		HAHUD->CharacterOverlay->YellowTeamScoreBar->SetPercent(0.f);
+		HAHUD->CharacterOverlay->GreenTeamScoreBar->SetPercent(0.f);
+		HAHUD->CharacterOverlay->YellowTeamScoreText->SetText(FText::FromString(Zero));
+		HAHUD->CharacterOverlay->GreenTeamScoreText->SetText(FText::FromString(Zero));
+	}
+}
+
+void AHAPlayerController::SetHUDYellowTeamScore(int32 YellowScore, int32 TargetScore)
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->YellowTeamScoreText &&
+		HAHUD->CharacterOverlay->YellowTeamScoreBar;
+
+	if (bHUDValid)
+	{
+		const float YellowPercent = (float)YellowScore / (float)TargetScore;
+		HAHUD->CharacterOverlay->YellowTeamScoreBar->SetPercent(YellowPercent);
+		FString YellowScoreString = FString::Printf(TEXT("%d"), YellowScore);
+		HAHUD->CharacterOverlay->YellowTeamScoreText->SetText(FText::FromString(YellowScoreString));
+	}
+}
+
+void AHAPlayerController::SetHUDGreenTeamScore(int32 GreenScore, int32 TargetScore)
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->CharacterOverlay &&
+		HAHUD->CharacterOverlay->GreenTeamScoreText &&
+		HAHUD->CharacterOverlay->GreenTeamScoreBar;
+
+	if (bHUDValid)
+	{
+		const float GreenPercent = (float)GreenScore / (float)TargetScore;
+		HAHUD->CharacterOverlay->GreenTeamScoreBar->SetPercent(GreenPercent);
+		FString GreenScoreString = FString::Printf(TEXT("%d"), GreenScore);
+		HAHUD->CharacterOverlay->GreenTeamScoreText->SetText(FText::FromString(GreenScoreString));
+	}
+}
 
 void AHAPlayerController::SetHUDHealth(float Health, float MaxHealth)
 {
@@ -265,6 +413,42 @@ void AHAPlayerController::SetHUDAnnouncmentTimer(float Time)
 	}
 }
 
+void AHAPlayerController::SetHUDAnnouncmentWinner(ETeam WinnerTeam, int32 YellowTeamScore, int32 GreenTeamScore)
+{
+	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
+
+	bool bHUDValid = HAHUD &&
+		HAHUD->Announcment &&
+		HAHUD->Announcment->InfoText &&
+		HAHUD->Announcment->GreenScoreText &&
+		HAHUD->Announcment->GreenTeamText &&
+		HAHUD->Announcment->YellowScoreText &&
+		HAHUD->Announcment->YellowTeamText;
+
+	if (bHUDValid)
+	{
+		FString InfoText("");
+		switch (WinnerTeam)
+		{
+		case ETeam::ET_YellowTeam:
+			InfoText = Announcment::YellowTeamWin;
+			break;
+		case ETeam::ET_GreenTeam:
+			InfoText = Announcment::GreenTeamWin;
+			break;
+		case ETeam::ET_NoTeam:
+			InfoText = Announcment::NoWinner;
+			break;
+		}
+
+		HAHUD->Announcment->InfoText->SetText(FText::FromString(InfoText));
+		HAHUD->Announcment->GreenScoreText->SetText(FText::FromString(FString::Printf(TEXT("%d"), GreenTeamScore)));
+		HAHUD->Announcment->GreenTeamText->SetText(FText::FromString(Announcment::GreenTeamScore));
+		HAHUD->Announcment->YellowScoreText->SetText(FText::FromString(FString::Printf(TEXT("%d"), YellowTeamScore)));
+		HAHUD->Announcment->YellowTeamText->SetText(FText::FromString(Announcment::YellowTeamScore));
+	}
+}
+
 void AHAPlayerController::SetHUDTime()
 {
 	float TimeLeft = 0.f;
@@ -273,8 +457,6 @@ void AHAPlayerController::SetHUDTime()
 	else if (MatchState == MatchState::Cooldown) TimeLeft = CooldownTime + WarmupTime + RoundTime - GetServerTime() + LevelStartingTime;
 
 	uint32 SecondsLeft = FMath::CeilToInt(TimeLeft);
-
-
 
 	if(TimerInt != SecondsLeft)
 	{
@@ -303,6 +485,12 @@ void AHAPlayerController::PollInit()
 				SetHUDHealth(HUDHealth, HUDMaxHealth);
 				SetHUDKills(HUDKills);
 				SetHUDDeaths(HUDDeaths);
+
+				AHAGameState* HAGameState = GetWorld()->GetGameState<AHAGameState>();
+				if(HAGameState)
+				{
+					SetHUDScoreTarget(HAGameState->TargetScore);
+				}
 			}
 		}
 	}
@@ -388,7 +576,6 @@ void AHAPlayerController::SetNumericValueInTextBlock(float Value, UTextBlock* Te
 	}
 }
 
-
 void AHAPlayerController::ReceivedPlayer()
 {
 	Super::ReceivedPlayer();
@@ -398,13 +585,13 @@ void AHAPlayerController::ReceivedPlayer()
 	}
 }
 
-void AHAPlayerController::OnMatchStateSet(FName State)
+void AHAPlayerController::OnMatchStateSet(FName State, bool bTeamsMatch /*= false*/)
 {
 	MatchState = State;
 
 	if(MatchState == MatchState::InProgress)
 	{
-		HandleMatchHasStarted();
+		HandleMatchHasStarted(bTeamsMatch);
 	}
 	else if(MatchState == MatchState::Cooldown)
 	{
@@ -425,15 +612,27 @@ void AHAPlayerController::OnRep_MatchState()
 	}
 }
 
-void AHAPlayerController::HandleMatchHasStarted()
+void AHAPlayerController::HandleMatchHasStarted(bool bTeamsMatch /*= false*/)
 {
+	if(HasAuthority()) bShowTeamScores = bTeamsMatch;
 	HAHUD = HAHUD == nullptr ? Cast<AHAHUD>(GetHUD()) : HAHUD;
 	if (HAHUD)
 	{
-		HAHUD->AddCharacterOverlay();
+		if(HAHUD->CharacterOverlay == nullptr) HAHUD->AddCharacterOverlay();
 		if (HAHUD->Announcment)
 		{
 			HAHUD->Announcment->SetVisibility(ESlateVisibility::Hidden);
+		}
+
+		if(!HasAuthority()) return;
+
+		if(bTeamsMatch)
+		{
+			InitTeamScores();
+		}
+		else
+		{
+			HideTeamScores();
 		}
 	}
 }
@@ -454,6 +653,12 @@ void AHAPlayerController::HandleCooldown()
 			HAHUD->Announcment->SetVisibility(ESlateVisibility::Visible);
 			FString AnnouncmentText("New Match Starting In: ");
 			HAHUD->Announcment->AnnouncmentText->SetText(FText::FromString(AnnouncmentText));
+		}
+
+		AHAGameState* HAGameState = Cast<AHAGameState>(UGameplayStatics::GetGameState(this));
+		if(HAGameState)
+		{
+			SetHUDAnnouncmentWinner(HAGameState->WinningTeam, HAGameState->YellowTeamScore, HAGameState->GreenTeamScore);
 		}
 	}
 

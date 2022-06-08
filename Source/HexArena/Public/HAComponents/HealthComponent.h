@@ -9,8 +9,7 @@
 class AHABaseCharacter;
 class UDamageType;
 class AController;
-
-
+class AHAGameMode;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class HEXARENA_API UHealthComponent : public UActorComponent
@@ -29,6 +28,7 @@ protected:
 	virtual void BeginPlay() override;
 	void UpdateHUDHealth();
 
+	void Heal(float HealValue);
 
 private:
 
@@ -52,16 +52,22 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Regeneration")
 	float HealAmount = 5.0f;
 
+	bool bNeedAutoHealing = false;
+	float LastHitTime = 0.f;
+
 	UFUNCTION()
-	void OnRep_Health();
+	void OnRep_Health(float LastHealth);
 
 	UFUNCTION()
 	void OnTakeAnyDamageHandle(AActor* DamageActor, float Damage,
 	const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser);
 
+	UPROPERTY()
+	AHAGameMode* HAGameMode;
 
 public:	
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 	FORCEINLINE float GetHealth() const { return Health; }
+	FORCEINLINE void SetHealth(float NewHealth) { Health = NewHealth; }
 
 };

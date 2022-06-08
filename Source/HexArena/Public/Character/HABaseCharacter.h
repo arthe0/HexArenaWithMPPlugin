@@ -12,6 +12,7 @@
 #include "PlayerStates/HaPlayerState.h"
 #include "HATypes/CombatState.h"
 #include "HAComponents/HitBoxComponent.h"
+#include <Engine/DataTable.h>
 #include "HABaseCharacter.generated.h"
 
 class UCombatComponent;
@@ -29,6 +30,29 @@ class ULagCompensationComponent;
 class UHitBoxComponent;
 class UHAMovementComponent;
 class UInventory;
+class UMaterialInstanceDynamic;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLeftGame);
+
+USTRUCT(BlueprintType)
+struct FTeamColorsData : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Death")
+	UMaterialInstance* BodyMaterialInstance;
+	UPROPERTY(EditAnywhere, Category = "Death")
+	UMaterialInstance* ArmMaterialInstance;
+	UPROPERTY(EditAnywhere, Category = "Death")
+	UMaterialInstance* UpperarmMaterialInstance;
+
+	UPROPERTY(EditAnywhere, Category = "Death")
+	UMaterialInstance* BodyDissolveMaterialInstance;
+	UPROPERTY(EditAnywhere, Category = "Death")
+	UMaterialInstance* ArmDissolveMaterialInstance;
+	UPROPERTY(EditAnywhere, Category = "Death")
+	UMaterialInstance* UpperarmDissolveMaterialInstance;
+};
 
 UCLASS()
 class HEXARENA_API AHABaseCharacter : public ACharacter, public IInteractWithCrosshairsInterface
@@ -51,10 +75,13 @@ public:
 	void PlayDeathMontage();
 	void PlayReloadMontage();
 
-	void Death();
+	void Death(bool bPlayerLeftGame = false);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastDeath();
+	void MulticastDeath(bool bPlayerLeftGame = false);
+
+	UFUNCTION(Server, Reliable)
+	void ServerLeaveGame();
 
 	AHAPlayerController* HAPlayerController;
 
@@ -66,6 +93,8 @@ public:
 
 	UPROPERTY(Replicated)
 	bool bDisableCombat = false;
+
+	FOnLeftGame OnLeftGame;
 
 protected:
 
@@ -95,6 +124,9 @@ protected:
 	void SwapWeaponButtonPressed();
 	void LowerWeaponButtonPesssed();
 	void DropWeaponButtonPressed();
+
+	void SetSpawnPoint();
+	void OnPlayerStateInit();
 
 	//	Poll for any relevant class and init HUD
 	void PollInit();
@@ -156,7 +188,7 @@ protected:
 
 private:
 	/*
-	*  Pickups 
+	*  Pickups and inventory
 	*/
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
@@ -190,11 +222,11 @@ private:
 	void EquipPowerUpHandle(AInteractable* Pickup);
 
 	UFUNCTION()
-	void InteractWitchLootBoxHandle(AInteractable* InteractObject);
+	void InteractWithLootBoxHandle(AInteractable* InteractObject);
 
 	/*
-	 *	HA Components 
-	 */
+	*	HA Components 
+	*/
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCombatComponent* Combat;
@@ -226,41 +258,55 @@ private:
 
 	void PlayHitReactMontage();
 
-
 	float ADSWeight = 0.f;
 	float AO_Yaw;
 	float AO_Pitch;
 	bool bDeath = false;
 
-	FTimerHandle DeathTimer;
-
-	UPROPERTY(EditDefaultsOnly)
-	float DeathDelay = 5.f;
-
-	void DeathTimerFinished();
-
 	FRotator StartingAimRoation;
-
 	ETurningInPlace TurningInPlace;
 	void TurnInPlace(float DeltaTime);
 
 	/*
-	* Dissolve effect
+	* Death Vars
+	*/
+
+	FTimerHandle DeathTimer;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Death")
+	float DeathDelay = 5.f;
+
+	void DeathTimerFinished();
+
+	/**
+	* Leaving game
+	*/
+
+	bool bLeftGame = false;
+
+	/*
+	* TeamColors and Dissolve effects
 	*/	
+
+	UDataTable* TeamColorsDT;
+	FTeamColorsData TeamColors;
+
+	UFUNCTION()
+	void SetTeamColor(FName Team);
+
+	UFUNCTION()
+	void SetDissolveMaterials(FName Team);
+
+	UPROPERTY(EditAnywhere, Category = "Team")
+	FName TeamName = "NoTeam";
 
 	//Dynamic instances changes during runtime
 	UPROPERTY(VisibleAnywhere, Category = "Death")
 	UMaterialInstanceDynamic* DynamicBodyDissolveMaterialInstance;
-
 	UPROPERTY(VisibleAnywhere, Category = "Death")
-	UMaterialInstanceDynamic* DynamicEquipDissolveMaterialInstance;
-
-	//Material instances set on the BP, used with dynamic materials
-	UPROPERTY(EditAnywhere, Category = "Death")
-	UMaterialInstance* BodyDissolveMaterialInstance;
-
-	UPROPERTY(EditAnywhere, Category = "Death")
-	UMaterialInstance* EquipDissolveMaterialInstance;
+	UMaterialInstanceDynamic* DynamicArmDissolveMaterialInstance;
+	UPROPERTY(VisibleAnywhere, Category = "Death")
+	UMaterialInstanceDynamic* DynamicUpperarmDissolveMaterialInstance;
 
 	UPROPERTY(VisibleAnywhere)
 	UTimelineComponent* DissolveTimeline;
@@ -301,4 +347,6 @@ public:
 	FORCEINLINE ULagCompensationComponent* GetLagCompensation () const { return LagCompensation; }
 	FORCEINLINE UCombatComponent* GetCombat () const { return Combat; }
 	FORCEINLINE UInventory* GetInventory () const { return Inventory; }
+
+	void SetTeamName(FName NewName);
 };

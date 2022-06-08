@@ -217,6 +217,9 @@ public:
 	void Dropped();
 	void ToInventory();
 	void AddAmmo(int32 AmmoToAdd);
+
+	void SetWeaponDataByName(FName NewName);
+
 	FVector TraceEndWithcSpread(const FVector& HitTarget, float Spread);
 	/*
 	* WeaponData
@@ -274,6 +277,9 @@ private:
 	UFUNCTION(Client, Reliable)
 	void ClientAddAmmo(int32 AmmoToAdd);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetWeaponDataByName(FName NewName);
+
 	void SpendRound();
 
 	//	The number of unprocessed server requses for ammo.
@@ -302,7 +308,7 @@ public:
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponData.WeaponType; }
 	FORCEINLINE bool IsFull() { return Ammo == WeaponData.MagCapacity; }
 	virtual FORCEINLINE FTransform GetsightsWorldTransform_Implementation() { return WeaponMeshComponent->GetSocketTransform(FName("Sights")); }
-	FORCEINLINE void SetWeaponName (FName NewName) { WeaponName = NewName; }
+
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "IK")
 	FTransform GetsightsWorldTransform() const;

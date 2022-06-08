@@ -20,4 +20,19 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* AnnouncmentText;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* InfoText;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* GreenScoreText;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* GreenTeamText;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* YellowScoreText;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* YellowTeamText;
 };

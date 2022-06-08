@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "HATypes/Team.h"
 #include "HAPlayerController.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHighPingDelegate, bool, bPingToHigh);
@@ -11,6 +12,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHighPingDelegate, bool, bPingToHigh
 class AHAHUD;
 class UTextBlock;
 class UCharacterOverlay;
+class UUserWidget;
+class UInGameMenu;
+class UHAInventory;
 
 UCLASS()
 class HEXARENA_API AHAPlayerController : public APlayerController
@@ -19,7 +23,6 @@ class HEXARENA_API AHAPlayerController : public APlayerController
 
 public:
 	virtual void Tick(float DeltaTime) override;
-
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void SetHUDHealth (float Health, float MaxHealth);
@@ -30,17 +33,25 @@ public:
 	void SetHUDTimer(float Time);
 	void SetHUDAnnouncmentTimer(float Time);
 	virtual void OnPossess(APawn* InPawn) override;
+	void SetHUDScoreTarget(int32 TargetScore);
+	void SetHUDAnnouncmentWinner(ETeam WinnerTeam, int32 YellowTeamScore, int32 GreenTeamScore);
+
+	void HideTeamScores();
+	void InitTeamScores();
+	void SetHUDYellowTeamScore(int32 YellowScore, int32 TargetScore);
+	void SetHUDGreenTeamScore(int32 GreenScore, int32 TargetScore);
 
 	virtual float GetServerTime();
 	virtual void ReceivedPlayer() override;
-	void OnMatchStateSet(FName State);
+	void OnMatchStateSet(FName State, bool bTeamsMatch = false);
 	void HandleCooldown();
-	void HandleMatchHasStarted();
+	void HandleMatchHasStarted(bool bTeamsMatch = false);
 
 	float SingleTripTime = 0.f;
 	FHighPingDelegate HighPingDelegate;
 protected:
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
 
 	void SetHUDTime();
 	void PollInit();
@@ -73,9 +84,37 @@ protected:
 
 	void CheckPing(float DeltaTime);
 
+	void ShowInGameMenu();
 
+	UPROPERTY(ReplicatedUsing = OnRep_ShowTeamScores)
+	bool bShowTeamScores = false;
+
+	UFUNCTION()
+	void OnRep_ShowTeamScores();
 private:
 	AHAHUD* HAHUD;
+
+	/*
+	* InGameMenu
+	*/
+
+	UPROPERTY(EditAnywhere, Category = HUD)
+	TSubclassOf<UUserWidget> InGameMenuWidget;
+
+	UPROPERTY()
+	UInGameMenu* InGameMenu;
+
+	/*
+	* InGameInventory
+	*/
+
+	UPROPERTY(EditAnywhere, Category = HUD)
+	TSubclassOf<UUserWidget> InventoryWidget;
+
+	UPROPERTY()
+	UHAInventory* Inventory;
+
+	bool bReturnToMainMenuOpen = false;
 
 	void SetNumericValueInTextBlock(float Value, UTextBlock* TextBlock);
 
@@ -115,4 +154,7 @@ private:
 	float HUDMaxHealth;
 	float HUDKills;
 	int32 HUDDeaths;
+
+public:
+	FORCEINLINE void SetRoundTime (float NewTime) { RoundTime = NewTime;}
 };

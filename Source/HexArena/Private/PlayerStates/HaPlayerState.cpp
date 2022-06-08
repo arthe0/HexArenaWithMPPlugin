@@ -13,6 +13,7 @@ void AHaPlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Out
 
 	DOREPLIFETIME(AHaPlayerState, Defeats);
 	DOREPLIFETIME(AHaPlayerState, Kills);
+	DOREPLIFETIME(AHaPlayerState, Team);
 }
 
 void AHaPlayerState::AddToScore(float ScoreAmount)
@@ -29,7 +30,6 @@ void AHaPlayerState::AddToScore(float ScoreAmount)
 		}
 	}
 }
-
 
 void AHaPlayerState::OnRep_Score()
 {
@@ -73,6 +73,50 @@ void AHaPlayerState::OnRep_Defeats()
 		}
 	}
 }
+
+void AHaPlayerState::SetTeam(ETeam TeamToSet)
+{
+	Team = TeamToSet;
+
+	Character = Character == nullptr ? Cast<AHABaseCharacter>(GetPawn()) : Character;
+	if (Character)
+	{
+		switch (Team)
+		{
+		case ETeam::ET_GreenTeam:
+			Character->SetTeamName("GreenTeam");
+			break;
+		case ETeam::ET_YellowTeam:
+			Character->SetTeamName("YellowTeam");
+			break;
+		case ETeam::ET_NoTeam:
+			Character->SetTeamName("NoTeam");
+			break;
+		}
+	}
+}
+
+void AHaPlayerState::OnRep_Team()
+{
+	Character = Character == nullptr ? Cast<AHABaseCharacter>(GetPawn()) : Character;
+	if (Character)
+	{
+		switch (Team)
+		{
+		case ETeam::ET_GreenTeam:
+			Character->SetTeamName("GreenTeam");
+			break;
+		case ETeam::ET_YellowTeam:
+			Character->SetTeamName("YellowTeam");
+			break;
+		case ETeam::ET_NoTeam:
+			Character->SetTeamName("NoTeam");
+			break;
+		}
+	}
+}
+
+
 
 //void AHaPlayerState::OnRep_Team()
 //{
