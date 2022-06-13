@@ -5,6 +5,7 @@
 #include "PlayerController/HAPlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "GameMode//HAGameMode.h"
+#include <HexBlock/KillBox.h>
 
 UHealthComponent::UHealthComponent()
 {
@@ -78,8 +79,11 @@ void UHealthComponent::OnTakeAnyDamageHandle(AActor* DamageActor, float Damage, 
 	HAGameMode = HAGameMode == nullptr ? GetWorld()->GetAuthGameMode<AHAGameMode>() : HAGameMode;
 	if(Character->bDeath || HAGameMode == nullptr) return;
 	if(Character->Controller == nullptr) return;
-	Damage = HAGameMode->CalculateDamage(InstigatedBy, Character->Controller, Damage);
-
+	if(!Cast<AKillBox>(DamageCauser))
+	{
+		Damage = HAGameMode->CalculateDamage(InstigatedBy, Character->Controller, Damage);
+	}
+	
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
 	LastHitTime = GetWorld()->GetTimeSeconds();
 	bNeedAutoHealing = true;

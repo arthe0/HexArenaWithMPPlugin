@@ -12,6 +12,8 @@
 #include "PlayerController/HAPlayerController.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Camera/CameraComponent.h"
+#include <Attachments/BaseAttachment.h>
+#include "Attachments/ScopeAttachment.h"
 
 ABaseWeapon::ABaseWeapon()
 {
@@ -35,6 +37,12 @@ ABaseWeapon::ABaseWeapon()
 	if (LootDTObject.Succeeded())
 	{
 		WeaponTable = LootDTObject.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UDataTable> AttachmentDTObject(TEXT("DataTable'/Game/Blueprints/Weapon/Attachment/DT_Attachments.DT_Attachments'"));
+	if (AttachmentDTObject.Succeeded())
+	{
+		AttachmentsTable = AttachmentDTObject.Object;
 	}
 }
 
@@ -61,7 +69,12 @@ void ABaseWeapon::MulticastSetWeaponDataByName_Implementation(FName NewName)
 		WeaponData = *WeaponTable->FindRow<FWeaponData>(WeaponName, "");
 	}
 
-	FireDelay = WeaponData.FireRate / 6000.f;
+	for ( FName Attachment : WeaponData.Attachments)
+	{
+		CreateAttachment(Attachment);
+	}
+
+	FireDelay =  60.f / WeaponData.FireRate ;
 	WeaponMeshComponent->SetSkeletalMesh(WeaponData.WeaponMesh);
 
 	Ammo = WeaponData.MagCapacity;
@@ -80,12 +93,85 @@ void ABaseWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME(ABaseWeapon, WeaponState);
 	DOREPLIFETIME(ABaseWeapon, WeaponData);
 	DOREPLIFETIME_CONDITION(ABaseWeapon, bUseSSR, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(ABaseWeapon, Ammo, COND_OwnerOnly);
+	//DOREPLIFETIME_CONDITION(ABaseWeapon, Ammo, COND_OwnerOnly);
 }
 
 void ABaseWeapon::OnPingToHigh(bool bPingTooHigh)
 {
 	bUseSSR = !bPingTooHigh;
+}
+
+void ABaseWeapon::CreateAttachment(FName Name)
+{
+	FAttachmentData* NewAttachmentData = nullptr;
+	UStaticMesh* NewAttachmentMesh = nullptr;
+	if (AttachmentsTable)
+	{
+		NewAttachmentData = AttachmentsTable->FindRow<FAttachmentData>(Name, "");
+	}
+
+	if (NewAttachmentData->AttachmentMesh)
+	{
+		NewAttachmentMesh = NewAttachmentData->AttachmentMesh;
+	}
+
+	if (!NewAttachmentData || !NewAttachmentMesh) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+	//FActorSpawnParameters SpawnParams;
+	//SpawnParams.Owner = GetOwner();
+	ABaseAttachment* NewAttachment = World->SpawnActor<ABaseAttachment>(NewAttachmentData->AttachmentClass, this->GetActorLocation(), this->GetActorRotation());
+	
+	if(!NewAttachment) return;
+	NewAttachment->AttachmentMesh->SetStaticMesh(NewAttachmentMesh);
+	NewAttachment->AttachmentData = *NewAttachmentData;
+
+	if (NewAttachment->AttachmentMesh && WeaponMeshComponent)
+	{
+		const USkeletalMeshSocket* WeaponSocket;
+
+		switch (NewAttachment->AttachmentData.AttachmentType)
+		{
+		case EAttachmentType::EAT_Mag:
+			WeaponSocket = WeaponMeshComponent->GetSocketByName(FName("Mag"));
+			if (WeaponSocket) WeaponSocket->AttachActor(NewAttachment, WeaponMeshComponent);
+			WeaponData.MagCapacity = NewAttachment->AttachmentData.MagCapacity;
+			break;
+		case EAttachmentType::EAT_Grip:
+			WeaponSocket = WeaponMeshComponent->GetSocketByName(FName("Grip"));
+			if (WeaponSocket) WeaponSocket->AttachActor(NewAttachment, WeaponMeshComponent);
+			break;
+		case EAttachmentType::EAT_Muzzle:
+			WeaponSocket = WeaponMeshComponent->GetSocketByName(FName("Barrel"));
+			if (WeaponSocket) WeaponSocket->AttachActor(NewAttachment, WeaponMeshComponent);
+			break;
+		case EAttachmentType::EAT_Stock:
+			WeaponSocket = WeaponMeshComponent->GetSocketByName(FName("Stock"));
+			if (WeaponSocket) WeaponSocket->AttachActor(NewAttachment, WeaponMeshComponent);
+			break;
+		case EAttachmentType::EAT_Sight:
+			WeaponSocket = WeaponMeshComponent->GetSocketByName(FName("Sight"));
+			//AScopeAttachment* NewSight = Cast<AScopeAttachment>(NewAttachment);
+			
+			Sight = NewAttachment;
+			WeaponData.ZoomedFOV *= Sight->AttachmentData.ZoomedFOVMultiplyer;
+			
+			if (WeaponSocket) WeaponSocket->AttachActor(NewAttachment, WeaponMeshComponent);
+			break;
+		}
+
+		if (NewAttachment->AttachmentData.AffectAiming)
+		{
+			WeaponData.ZoomInterpSpeed *= NewAttachment->AttachmentData.ZoomInterpSpeedMultiplyer;
+		}
+
+		if (NewAttachment->AttachmentData.AffectRecoil)
+		{
+			WeaponData.HipScatterDistance /= NewAttachment->AttachmentData.SpreadMultiplyer;
+		}
+		Attachments.Add(NewAttachment);
+	}
 }
 
 /*
@@ -134,14 +220,20 @@ void ABaseWeapon::OnEquipped()
 		}
 	}
 	EnableCustomDepth(false);
+
+	for (auto Attachment : Attachments)
+	{
+		Attachment->EnableCustomDepth(false);
+	}
 }
 
 void ABaseWeapon::OnDropped()
 {
-
 	PhysicsMeshComponent->SetSimulatePhysics(true);
 	PhysicsMeshComponent->SetEnableGravity(true);
 	PhysicsMeshComponent->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+
+	UnprocessedSequence = 0;
 
 	if (HasAuthority())
 	{
@@ -161,6 +253,12 @@ void ABaseWeapon::OnDropped()
 	}
 	WeaponMeshComponent->MarkRenderStateDirty();
 	EnableCustomDepth(true);
+
+	for (auto Attachment : Attachments)
+	{
+		Attachment->AttachmentMesh->MarkRenderStateDirty();
+		Attachment->EnableCustomDepth(true);
+	}
 }
 
 void ABaseWeapon::OnInventory()
@@ -170,6 +268,8 @@ void ABaseWeapon::OnInventory()
 	PhysicsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PhysicsMeshComponent->SetSimulatePhysics(false);
 	PhysicsMeshComponent->SetEnableGravity(false);
+
+	UnprocessedSequence = 0;
 
 	HAOwnerCharacter = HAOwnerCharacter == nullptr ? Cast<AHABaseCharacter>(GetOwner()) : HAOwnerCharacter;
 	if (HAOwnerCharacter && bUseSSR)
@@ -181,6 +281,11 @@ void ABaseWeapon::OnInventory()
 		}
 	}
 	EnableCustomDepth(false);
+
+	for (auto Attachment : Attachments)
+	{
+		Attachment->EnableCustomDepth(false);
+	}
 }
 
 void ABaseWeapon::OnRep_WeaponState()
@@ -197,6 +302,11 @@ void ABaseWeapon::Dropped()
 	SetOwner(nullptr);
 	HAOwnerController = nullptr;
 	HAOwnerCharacter = nullptr;
+
+	for (auto Attachment : Attachments)
+	{
+		Attachment->SetOwner(nullptr);
+	}
 }
 
 void ABaseWeapon::ToInventory()
@@ -332,6 +442,34 @@ void ABaseWeapon::EnableCustomDepth(bool bEnable)
 bool ABaseWeapon::IsEmpty()
 {
 	return Ammo <= 0;
+}
+
+//FTransform ABaseWeapon::GetsightsWorldTransform_Implementation() const
+//{
+//	if (Sight == nullptr)
+//	{
+//		return WeaponMeshComponent->GetSocketTransform(FName("Sights"));
+//		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Sights"));
+//	}
+//	else
+//	{
+//		return Sight->AttachmentMesh->GetSocketTransform(FName("Sights"));
+//		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Scope"));
+//	}
+//}
+
+FTransform ABaseWeapon::GetsightsWorldTransform() const
+{
+	if (Sight == nullptr)
+	{
+		return WeaponMeshComponent->GetSocketTransform(FName("Sights"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Sight"));
+	}
+	else
+	{
+		return Sight->AttachmentMesh->GetSocketTransform(FName("Sights"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Scope"));
+	}
 }
 
 FName ABaseWeapon::GetWeaponName_Implementation()

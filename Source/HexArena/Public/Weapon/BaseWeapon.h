@@ -8,6 +8,7 @@
 #include "Weapon/WeaponTypes.h"
 #include "Engine/DataTable.h"
 #include "Pickups/BasePickup.h"
+#include "Attachments.h"
 #include "BaseWeapon.generated.h"
 
 class AProjectile;
@@ -15,6 +16,10 @@ class UAnimationAsset;
 class UTexture2D;
 class AHABaseCharacter;
 class AHAPlayerController;
+class ABaseAttachment;
+class AScopeAttachment;
+
+
 
 //Struct for FPP 
 USTRUCT(BlueprintType)
@@ -68,11 +73,14 @@ struct FWeaponData : public FTableRowBase
 	FName WeaponName;
 
 	/*
-	* Weapon Mesh
+	* Weapon Mesh and Attachments
 	*/
 
-	UPROPERTY(EditAnywhere, Category = "Weapon SK Mesh")
+	UPROPERTY(EditAnywhere, Category = "Weapon")
 	USkeletalMesh* WeaponMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Attachments")
+	TArray<FName> Attachments;
 
 	/*
 	 *  Effects and animations
@@ -221,6 +229,7 @@ public:
 	void SetWeaponDataByName(FName NewName);
 
 	FVector TraceEndWithcSpread(const FVector& HitTarget, float Spread);
+
 	/*
 	* WeaponData
 	*/
@@ -233,6 +242,9 @@ public:
 	 */
 
 	 float FireDelay;
+
+	 UFUNCTION(Category = "IK")
+	 FTransform GetsightsWorldTransform() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -253,6 +265,8 @@ protected:
 	UPROPERTY(Replicated, EditAnywhere)
 	bool bUseSSR = true;
 
+	/*void CreateAndSetupAttachment(FName Name);*/
+	void CreateAttachment(FName Name);
 
 private:	
 
@@ -265,7 +279,7 @@ private:
 	UFUNCTION()
 	void OnRep_WeaponState();
 
-	UPROPERTY(EditAnywhere, Replicated/*Using = OnRep_Ammo*/)
+	UPROPERTY(EditAnywhere/*, ReplicatedUsing = OnRep_Ammo */ )
 	int32 Ammo;
 
 	UPROPERTY(EditAnywhere, Category = "Table Data")
@@ -293,6 +307,10 @@ private:
 	AHAPlayerController* HAOwnerController;
 
 	UDataTable* WeaponTable;
+	UDataTable* AttachmentsTable;
+
+	TArray<ABaseAttachment*> Attachments;
+	ABaseAttachment* Sight;
 
 public:
 	void SetWeaponState(EWeaponState State);
@@ -307,11 +325,10 @@ public:
 	FORCEINLINE EAmmoType GetWeaponAmmoType() const { return WeaponData.AmmoType; }
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponData.WeaponType; }
 	FORCEINLINE bool IsFull() { return Ammo == WeaponData.MagCapacity; }
-	virtual FORCEINLINE FTransform GetsightsWorldTransform_Implementation() { return WeaponMeshComponent->GetSocketTransform(FName("Sights")); }
+	FORCEINLINE TArray<ABaseAttachment*>& GetAttachments() { return Attachments;}
 
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "IK")
-	FTransform GetsightsWorldTransform() const;
+	//FTransform GetsightsWorldTransform() const;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "WeaponData")
 	FName GetWeaponName();

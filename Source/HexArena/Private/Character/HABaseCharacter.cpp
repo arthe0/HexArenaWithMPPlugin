@@ -626,7 +626,7 @@ void AHABaseCharacter::PollInit()
 
 void AHABaseCharacter::SetSpawnPoint()
 {
-	if(HasAuthority() && HAPlayerState->GetTeam() != ETeam::ET_NoTeam)
+	if(HasAuthority() && HAPlayerState && HAPlayerState->GetTeam() != ETeam::ET_NoTeam)
 	{
 		TArray<AActor*> PlayerStarts;
 		UGameplayStatics::GetAllActorsOfClass(this, ATeamPlayerStart::StaticClass(), PlayerStarts);

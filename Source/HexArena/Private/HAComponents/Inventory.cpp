@@ -6,8 +6,10 @@
 #include "HAComponents/CombatComponent.h"
 #include "PlayerController/HAPlayerController.h"
 #include "Weapon/BaseWeapon.h"
+#include "Attachments/ScopeAttachment.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Net/UnrealNetwork.h"
+#include <Attachments/BaseAttachment.h>
 
 UInventory::UInventory()
 {
@@ -101,6 +103,11 @@ void UInventory::SetPrimaryWeapon(ABaseWeapon* WeaponToSet)
 		return;
 	}
 
+	for (auto Attachment : WeaponToSet->GetAttachments())
+	{
+		Attachment->SetOwner(GetOwner());
+	}
+
 	PrimaryWeapon = WeaponToSet;
 	PrimaryWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
 	Combat->SetWeapon(PrimaryWeapon);
@@ -110,10 +117,6 @@ void UInventory::SetPrimaryWeapon(ABaseWeapon* WeaponToSet)
 
 	Combat->CarriedAmmo = GetEquippedWeaponCarriedAmmo();
 
-	//if (InventoryData.CarriedAmmoMap.Contains(WeaponToEquip->GetWeaponAmmoType()))
-	//{
-	//	CarriedAmmo = InventoryData.CarriedAmmoMap[WeaponToEquip->GetWeaponAmmoType()];
-	//}
 	SetHUDAmmo(PrimaryWeapon->GetAmmo(), GetEquippedWeaponCarriedAmmo());
 }
 
@@ -147,6 +150,11 @@ void UInventory::SetSecondaryWeapon(ABaseWeapon* WeaponToSet)
 	SecondaryWeapon->SetWeaponState(EWeaponState::EWS_Inventory);
 	AttachToSecondaryWeaponSocket(WeaponToSet);
 	SecondaryWeapon->SetOwner(Character);
+
+	for (auto Attachment : WeaponToSet->GetAttachments())
+	{
+		Attachment->SetOwner(nullptr);
+	}
 }
 
 void UInventory::OnRep_SecondaryWeapon()

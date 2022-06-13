@@ -100,7 +100,7 @@ void UInGameMenu::OnDestroySession(bool bWasSuccessful)
 			PlayerController = PlayerController == nullptr ? World->GetFirstPlayerController() : PlayerController;
 			if(PlayerController)
 			{
-				PlayerController->ClientReturnToMainMenu(FString());
+				PlayerController->ClientReturnToMainMenuWithTextReason(FText::FromString(FString("Pressed leave button")));
 			}
 		}
 	}

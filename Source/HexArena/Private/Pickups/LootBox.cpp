@@ -132,7 +132,7 @@ void ALootBox::CreateLootItems()
 			ABaseWeapon* BaseWeapon = World->SpawnActorDeferred<ABaseWeapon>(Loot[I]->LootClass, this->GetTransform());
 			BaseWeapon->SetWeaponDataByName(Loot[I]->LootName);
 			BaseWeapon->FinishSpawning(this->GetTransform());
-			BaseWeapon->AddImpulse(FVector((50.f - I * 50.f), 100, 150), NAME_None, true);
+			BaseWeapon->AddImpulse(FVector((50.f - I * 50.f), 100, 200), NAME_None, true);
 		}
 		else if(Loot[I]->PickupType == EPickupTypes::EPT_Ammo)
 		{

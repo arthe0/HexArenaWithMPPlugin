@@ -291,10 +291,11 @@ void ULagCompensationComponent::ProjectileServerScoreRequest_Implementation(AHAB
 {
 	FServerSideRewindResult Confirm = ProjectileServerSideRewind(HitCharacter, TraceStart, Initialvelocity, HitTime);
 
-	if(Character && HitCharacter && Confirm.bHitConfirmed)
+	if(Character && HitCharacter && Confirm.bHitConfirmed && Character->GetEquippedWeapon())
 	{
 
 		float DamageToCause = 0.f;
+
 		FWeaponData EquippedWeaponData = Character->GetEquippedWeapon()->WeaponData;
 
 		switch (Confirm.HittedBox)

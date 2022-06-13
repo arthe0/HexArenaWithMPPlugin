@@ -20,16 +20,8 @@
 
 UCombatComponent::UCombatComponent()
 {
-	
 	PrimaryComponentTick.bCanEverTick = true;
-
-	//Make a character movement component?
-	BaseWalkSpeed = 600.f;
-	BaseWalkCrouchSpeed = 350.f;
-	RunMultiplyer = 2.f;
-	AimMultiplyer = .3f;
 }
-
 
 void UCombatComponent::BeginPlay()
 {
@@ -52,7 +44,6 @@ void UCombatComponent::BeginPlay()
 		}
 	}
 }
-
 
 void UCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -113,7 +104,7 @@ void UCombatComponent::SetHUDCrosshairs()
 void UCombatComponent::CalculateHipSpread(float DeltaTime)
 {
 	//Calculate crosshair spread
-//[0, 600] -> [0, 1]
+	//[0, 600] -> [0, 1]
 	FVector2D WalkSpeedRange(0.f, Character->GetCharacterMovement()->MaxWalkSpeed);
 	FVector2D VelocityMultiplyerRange(0.f, 1.f);
 	FVector Velocity = Character->GetVelocity();
